@@ -1,0 +1,994 @@
+/* ════════════════════════════════════════════════════════
+   CAD.42 UNIFIELD Dashboard — custom.css
+   Police : DM Sans (Google Fonts) + fallback système
+   Palette : fond #F8FAFB · accent #5D9050 · texte #1E293B
+   ════════════════════════════════════════════════════════ */
+
+   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+   :root {
+     --accent:       #5D9050;
+     --accent-dark:  #4A7340;
+     --accent-bg:    #F0F5EF;
+     --bg:           #F8FAFB;
+     --surface:      #FFFFFF;
+     --border:       #E2E8F0;
+     --border-dark:  #CBD5E1;
+     --text:         #1E293B;
+     --text-muted:   #64748B;
+     --text-light:   #94A3B8;
+     --red:          #DC2626;
+     --red-bg:       #FEF2F2;
+     --red-border:   #FECACA;
+     --orange:       #D97706;
+     --orange-bg:    #FFFBEB;
+     --orange-bdr:   #FDE68A;
+     --green:        #16A34A;
+     --green-bg:     #F0FDF4;
+     --green-bdr:    #BBF7D0;
+     --blue:         #2563EB;
+     --blue-bg:      #EFF6FF;
+     --blue-bdr:     #BFDBFE;
+   }
+   
+   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+   
+   body {
+     font-family: 'DM Sans', -apple-system, sans-serif;
+     background: var(--bg);
+     color: var(--text);
+     font-size: 14px;
+     line-height: 1.5;
+     -webkit-font-smoothing: antialiased;
+   }
+   
+   /* ── Layout global ── */
+   .page-layout {
+     display: flex;
+     height: 100vh;
+     overflow: hidden;
+   }
+   
+   /* ── Sidebar ── */
+   .sidebar {
+     width: 248px;
+     min-width: 248px;
+     height: 100vh;
+     background: var(--surface);
+     border-right: 1px solid var(--border);
+     padding: 24px 18px;
+     overflow-y: auto;
+     display: flex;
+     flex-direction: column;
+     gap: 0;
+     position: sticky;
+     top: 0;
+   }
+   
+   .logo-name {
+     font-size: 1.25rem;
+     font-weight: 700;
+     color: var(--accent);
+     letter-spacing: -0.02em;
+     line-height: 1;
+   }
+   .logo-sub {
+     font-size: 0.65rem;
+     color: var(--text-muted);
+     text-transform: uppercase;
+     letter-spacing: 0.1em;
+     margin-top: 3px;
+   }
+   .sb-hr {
+     border: none;
+     border-top: 1px solid var(--border);
+     margin: 16px 0;
+   }
+   .sb-section {
+     font-size: 0.65rem;
+     font-weight: 700;
+     color: var(--text-muted);
+     text-transform: uppercase;
+     letter-spacing: 0.1em;
+     margin: 16px 0 8px;
+   }
+   .sb-label {
+     font-size: 0.75rem;
+     color: var(--text-muted);
+     margin-bottom: 4px;
+     display: block;
+     font-weight: 500;
+   }
+   .sb-input {
+     width: 100%;
+     background: var(--bg);
+     border: 1px solid var(--border);
+     border-radius: 6px;
+     padding: 7px 10px;
+     font-size: 0.82rem;
+     color: var(--text);
+     outline: none;
+     transition: border-color 0.15s, box-shadow 0.15s;
+     margin-bottom: 8px;
+     font-family: inherit;
+   }
+   .sb-input:focus {
+     border-color: var(--accent);
+     box-shadow: 0 0 0 3px rgba(93,144,80,0.12);
+   }
+   
+   /* Dash number input override */
+   input[type=number] {
+     width: 100% !important;
+     background: var(--bg) !important;
+     border: 1px solid var(--border) !important;
+     border-radius: 6px !important;
+     padding: 7px 10px !important;
+     font-size: 0.82rem !important;
+     color: var(--text) !important;
+     outline: none !important;
+     font-family: inherit !important;
+     margin-bottom: 8px !important;
+     appearance: textfield !important;
+     -moz-appearance: textfield !important;
+   }
+   input[type=number]::-webkit-outer-spin-button,
+   input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+   input[type=email], input[type=password] {
+     width: 100% !important;
+     background: var(--bg) !important;
+     border: 1px solid var(--border) !important;
+     border-radius: 6px !important;
+     padding: 7px 10px !important;
+     font-size: 0.82rem !important;
+     color: var(--text) !important;
+     outline: none !important;
+     font-family: inherit !important;
+     margin-bottom: 8px !important;
+   }
+   input[type=email]:focus, input[type=password]:focus, input[type=number]:focus {
+     border-color: var(--accent) !important;
+     box-shadow: 0 0 0 3px rgba(93,144,80,0.12) !important;
+   }
+   
+   /* ── Statut connexion ── */
+   .conn-row {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     font-size: 0.78rem;
+     color: var(--text-muted);
+     padding: 8px 10px;
+     background: var(--bg);
+     border: 1px solid var(--border);
+     border-radius: 6px;
+     margin-bottom: 6px;
+   }
+   .sync-hint {
+     font-size: 0.68rem;
+     color: var(--text-light);
+     margin-bottom: 10px;
+     padding: 0 2px;
+   }
+   .dot-live {
+     width: 8px; height: 8px; border-radius: 50%;
+     background: var(--green);
+     animation: pulse 2s ease-in-out infinite;
+     flex-shrink: 0; display: inline-block;
+   }
+   .dot-err {
+     width: 8px; height: 8px; border-radius: 50%;
+     background: var(--red); flex-shrink: 0; display: inline-block;
+   }
+   .dot-load {
+     width: 8px; height: 8px; border-radius: 50%;
+     background: var(--orange);
+     animation: pulse 0.8s ease-in-out infinite;
+     flex-shrink: 0; display: inline-block;
+   }
+   .dot-wait {
+     width: 8px; height: 8px; border-radius: 50%;
+     background: var(--text-light); flex-shrink: 0; display: inline-block;
+   }
+   
+   /* ── Boutons ── */
+   .btn-primary {
+     background: var(--accent);
+     color: #fff;
+     border: none;
+     border-radius: 6px;
+     padding: 9px 0;
+     font-size: 0.82rem;
+     font-weight: 600;
+     cursor: pointer;
+     width: 100%;
+     transition: background 0.15s, transform 0.1s;
+     margin-bottom: 6px;
+     font-family: inherit;
+     letter-spacing: 0.01em;
+   }
+   .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+   .btn-primary:active { transform: translateY(0); }
+   
+   .btn-secondary {
+     background: transparent;
+     color: var(--text-muted);
+     border: 1px solid var(--border);
+     border-radius: 6px;
+     padding: 9px 0;
+     font-size: 0.82rem;
+     font-weight: 500;
+     cursor: pointer;
+     width: 100%;
+     transition: background 0.15s;
+     font-family: inherit;
+     margin-bottom: 6px;
+   }
+   .btn-secondary:hover { background: var(--bg); color: var(--text); }
+   
+   /* ── Barre de chargement animée ── */
+   .load-wrap {
+     background: var(--border);
+     border-radius: 99px;
+     height: 4px;
+     overflow: hidden;
+     margin: 6px 0 4px;
+   }
+   .load-bar {
+     height: 100%;
+     border-radius: 99px;
+     background: linear-gradient(90deg, var(--accent), #7CB872, var(--accent));
+     background-size: 200% 100%;
+     animation: load-slide 1.6s ease-in-out infinite;
+   }
+   .load-hint {
+     font-size: 0.68rem;
+     color: var(--text-light);
+     margin-top: 2px;
+   }
+   @keyframes load-slide {
+     0%   { width: 25%; margin-left: 0%; }
+     50%  { width: 55%; margin-left: 25%; }
+     100% { width: 25%; margin-left: 75%; }
+   }
+   
+   /* ── Contenu principal ── */
+   .main-content {
+     flex: 1;
+     padding: 32px 40px;
+     overflow-y: auto;
+     height: 100vh;
+     min-width: 0;
+   }
+   
+   /* ── Header ── */
+   .page-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: flex-start;
+     padding-bottom: 20px;
+     border-bottom: 1px solid var(--border);
+     margin-bottom: 28px;
+   }
+   .page-title {
+     font-size: 1.75rem;
+     font-weight: 700;
+     color: var(--text);
+     letter-spacing: -0.02em;
+     line-height: 1.1;
+   }
+   .page-sub {
+     font-size: 0.82rem;
+     color: var(--text-muted);
+     margin-top: 4px;
+   }
+   .page-meta {
+     font-size: 0.72rem;
+     color: var(--text-muted);
+     background: var(--surface);
+     border: 1px solid var(--border);
+     border-radius: 6px;
+     padding: 6px 12px;
+     text-align: right;
+     white-space: nowrap;
+     line-height: 1.7;
+   }
+   
+   /* ── Section label ── */
+   .section-label {
+     font-size: 0.68rem;
+     font-weight: 700;
+     color: var(--text-muted);
+     letter-spacing: 0.1em;
+     text-transform: uppercase;
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     margin: 24px 0 14px;
+   }
+   .section-label::after {
+     content: '';
+     flex: 1;
+     height: 1px;
+     background: var(--border);
+   }
+   
+   /* ── KPI grid ── */
+   .kpi-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+     gap: 12px;
+     margin-bottom: 8px;
+   }
+   .kpi-card {
+     background: var(--surface);
+     border: 1px solid var(--border);
+     border-radius: 10px;
+     padding: 18px 20px;
+     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+     transition: box-shadow 0.15s;
+   }
+   .kpi-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
+   .kpi-label {
+     font-size: 0.68rem;
+     font-weight: 700;
+     color: var(--text-muted);
+     text-transform: uppercase;
+     letter-spacing: 0.08em;
+     margin-bottom: 10px;
+   }
+   .kpi-value {
+     font-size: 2.2rem;
+     font-weight: 700;
+     line-height: 1;
+     font-variant-numeric: tabular-nums;
+     margin-bottom: 6px;
+   }
+   .kpi-sub {
+     font-size: 0.72rem;
+     color: var(--text-light);
+   }
+   
+   /* ── Onglets ── */
+   .tab-bar {
+     display: flex;
+     gap: 3px;
+     padding: 4px;
+     background: var(--surface);
+     border: 1px solid var(--border);
+     border-radius: 8px;
+     margin-bottom: 22px;
+     width: fit-content;
+     flex-wrap: wrap;
+   }
+   .tab-btn {
+     padding: 7px 16px;
+     border: 1px solid transparent;
+     background: transparent;
+     border-radius: 6px;
+     font-size: 0.8rem;
+     font-weight: 500;
+     color: var(--text-muted);
+     cursor: pointer;
+     transition: all 0.15s;
+     white-space: nowrap;
+     font-family: inherit;
+   }
+   .tab-btn:hover { background: var(--bg); color: var(--text); }
+   .tab-btn.active {
+     background: var(--accent);
+     color: #fff;
+     border-color: var(--accent);
+     box-shadow: 0 2px 8px rgba(93,144,80,0.25);
+   }
+   
+   /* ── Bannières alertes ── */
+   .banner {
+     border-radius: 8px;
+     padding: 13px 18px;
+     font-size: 0.85rem;
+     font-weight: 500;
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     margin-bottom: 12px;
+   }
+   .banner.ok     { background: var(--green-bg);  border: 1px solid var(--green-bdr);  color: var(--green); }
+   .banner.warn   { background: var(--orange-bg); border: 1px solid var(--orange-bdr); color: var(--orange); }
+   .banner.danger { background: var(--red-bg);    border: 1px solid var(--red-border); color: var(--red); }
+   .banner.info   { background: var(--blue-bg);   border: 1px solid var(--blue-bdr);   color: var(--blue); }
+   
+   /* ── Score cards ── */
+   .score-card {
+     background: var(--surface);
+     border: 1px solid var(--border);
+     border-radius: 10px;
+     padding: 16px 20px;
+     margin-bottom: 8px;
+     transition: box-shadow 0.15s, border-color 0.15s;
+   }
+   .score-card:hover {
+     box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+     border-color: var(--border-dark);
+   }
+   .score-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 10px;
+   }
+   .score-name {
+     font-size: 0.9rem;
+     font-weight: 600;
+     color: var(--text);
+     white-space: nowrap;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     max-width: 65%;
+   }
+   .score-badge {
+     font-size: 0.72rem;
+     font-weight: 700;
+     padding: 3px 10px;
+     border-radius: 20px;
+     white-space: nowrap;
+   }
+   .score-track {
+     height: 6px;
+     background: var(--bg);
+     border-radius: 10px;
+     overflow: hidden;
+     border: 1px solid var(--border);
+     margin-bottom: 10px;
+   }
+   .score-fill {
+     height: 100%;
+     border-radius: 10px;
+     transition: width 0.4s ease;
+   }
+   .score-meta {
+     display: flex;
+     gap: 14px;
+     font-size: 0.72rem;
+     color: var(--text-muted);
+     flex-wrap: wrap;
+   }
+   
+   /* ── Filtre projets ── */
+   .filter-bar {
+     display: flex;
+     gap: 8px;
+     margin-bottom: 16px;
+     flex-wrap: wrap;
+   }
+   .filter-btn {
+     padding: 6px 14px;
+     border: 1px solid var(--border);
+     background: var(--surface);
+     border-radius: 20px;
+     font-size: 0.78rem;
+     font-weight: 500;
+     color: var(--text-muted);
+     cursor: pointer;
+     transition: all 0.15s;
+     font-family: inherit;
+   }
+   .filter-btn:hover { border-color: var(--border-dark); color: var(--text); }
+   .filter-btn.active {
+     background: var(--accent);
+     border-color: var(--accent);
+     color: #fff;
+   }
+   
+   /* ── Label filtre ── */
+   .filter-label {
+     font-size: 0.72rem;
+     font-weight: 600;
+     color: var(--text-muted);
+     margin-bottom: 4px;
+     display: block;
+   }
+
+   /* ── Dropdown filtre (dcc.Dropdown) ── */
+   .dd-filter .Select-control {
+     background-color: var(--bg);
+     border-color: var(--border);
+     color: var(--text);
+     border-radius: 6px;
+     font-size: 0.82rem;
+     font-family: 'DM Sans', sans-serif;
+   }
+   .dd-filter .Select-control:hover { border-color: var(--border-dark); }
+   .dd-filter.Select.is-focused:not(.is-open) .Select-control,
+   .dd-filter .Select.is-focused:not(.is-open) .Select-control {
+     border-color: var(--accent);
+     box-shadow: 0 0 0 3px rgba(93,144,80,0.12);
+   }
+   .dd-filter .Select-placeholder { color: var(--text-light); }
+   .dd-filter .Select-value-label  { color: var(--text); }
+   .dd-filter .Select-arrow         { border-top-color: var(--text-muted); }
+   .dd-filter .Select-menu-outer {
+     background-color: var(--surface);
+     border-color: var(--border);
+     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+     border-radius: 6px;
+   }
+   .dd-filter .Select-option {
+     background-color: var(--surface);
+     color: var(--text);
+     font-size: 0.82rem;
+   }
+   .dd-filter .Select-option.is-focused  { background-color: var(--bg); }
+   .dd-filter .Select-option.is-selected {
+     background-color: var(--accent-bg);
+     color: var(--accent);
+   }
+
+   /* ── QC blocks ── */
+   .qc-block {
+     background: var(--surface);
+     border: 1px solid var(--border);
+     border-radius: 10px;
+     padding: 18px 20px;
+     margin-bottom: 12px;
+   }
+   .qc-title {
+     font-size: 0.68rem;
+     font-weight: 700;
+     color: var(--text-muted);
+     text-transform: uppercase;
+     letter-spacing: 0.08em;
+     margin-bottom: 14px;
+   }
+   .qc-row {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 6px 0;
+     border-bottom: 1px solid var(--border);
+     font-size: 0.82rem;
+   }
+   .qc-row:last-child { border-bottom: none; }
+   .qc-lbl  { color: var(--text-muted); }
+   .qc-ok   { color: var(--green);  font-weight: 600; }
+   .qc-warn { color: var(--orange); font-weight: 600; }
+   .qc-err  { color: var(--red);    font-weight: 600; }
+   .qc-info { color: var(--text);   font-weight: 600; }
+   
+   /* ── DataTable Dash ── */
+   .dash-spreadsheet-container .dash-spreadsheet-inner th {
+     background: var(--bg) !important;
+     color: var(--text-muted) !important;
+     font-family: 'DM Sans', sans-serif !important;
+     font-size: 0.7rem !important;
+     font-weight: 700 !important;
+     text-transform: uppercase !important;
+     letter-spacing: 0.06em !important;
+     border-bottom: 1px solid var(--border) !important;
+     padding: 10px 12px !important;
+   }
+   .dash-spreadsheet-container .dash-spreadsheet-inner td {
+     font-size: 0.82rem !important;
+     color: var(--text) !important;
+     font-family: 'DM Sans', sans-serif !important;
+     border-bottom: 1px solid var(--border) !important;
+     padding: 9px 12px !important;
+   }
+   .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+     background: var(--bg) !important;
+   }
+   .dash-spreadsheet-container {
+     border: 1px solid var(--border) !important;
+     border-radius: 10px !important;
+     overflow: hidden !important;
+   }
+   .dash-spreadsheet-container .previous-page,
+   .dash-spreadsheet-container .next-page,
+   .dash-spreadsheet-container .last-page,
+   .dash-spreadsheet-container .first-page {
+     color: var(--accent) !important;
+   }
+   
+   /* ── Scrollbar ── */
+   ::-webkit-scrollbar { width: 6px; height: 6px; }
+   ::-webkit-scrollbar-track { background: transparent; }
+   ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+   ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+   
+   /* ── Animations ── */
+   @keyframes pulse {
+     0%, 100% { opacity: 1; transform: scale(1); }
+     50%       { opacity: .5; transform: scale(1.4); }
+   }
+   @keyframes fadein {
+     from { opacity: 0; transform: translateY(6px); }
+     to   { opacity: 1; transform: translateY(0); }
+   }
+   .tab-content-anim { animation: fadein 0.2s ease; }
+
+
+ /* ── Modal overlay (fond cliquable) ── */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadein 0.2s ease;
+}
+
+/* Le fond sombre : couvre tout, cliquable, derrière le box */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.4);
+  z-index: 1001;
+  cursor: pointer;
+}
+
+/* Le box : au-dessus du fond, les clics internes ne passent PAS au fond */
+.modal-box {
+  background: var(--surface);
+  border-radius: 14px;
+  width: 80vw;
+  max-width: 1000px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  padding: 28px 32px;
+  position: relative;
+  z-index: 1002;  /* au-dessus du backdrop */
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.modal-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.modal-close:hover { background: var(--bg); color: var(--text); }
+.modal-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.modal-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.modal-stat-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.modal-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Scroll horizontal DataTable ── */
+.dash-spreadsheet-container {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+.dash-spreadsheet-inner {
+  overflow-x: auto !important;
+}
+.dash-spreadsheet {
+  min-width: max-content !important;
+}
+
+/* ── Search input ── */
+.search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  color: var(--text);
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93,144,80,0.12);
+  outline: none;
+}
+.search-input::placeholder { color: var(--text-light); }
+
+/* ── Loading card ── */
+.load-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+}
+
+/* ── Mode sombre ── */
+body.dark {
+  --bg:          #0F1117;
+  --surface:     #1A1D27;
+  --border:      #2A2D3A;
+  --border-dark: #3A3D4A;
+  --text:        #F1F5F9;
+  --text-muted:  #94A3B8;
+  --text-light:  #475569;
+  --accent-bg:   rgba(93,144,80,0.15);
+  --red-bg:      rgba(220,38,38,0.15);
+  --red-border:  rgba(220,38,38,0.3);
+  --orange-bg:   rgba(217,119,6,0.15);
+  --orange-bdr:  rgba(217,119,6,0.3);
+  --green-bg:    rgba(22,163,74,0.15);
+  --green-bdr:   rgba(22,163,74,0.3);
+  --blue-bg:     rgba(37,99,235,0.15);
+  --blue-bdr:    rgba(37,99,235,0.3);
+}
+
+/* Bouton dark mode */
+.btn-dark-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: inherit;
+  transition: all 0.15s;
+  width: 100%;
+  margin-bottom: 6px;
+  text-align: left;
+}
+.btn-dark-toggle:hover { background: var(--bg); color: var(--text); }
+
+/* ── Dark mode toggle ── */
+.dark-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dark-toggle-wrap:hover { border-color: var(--border-dark); }
+
+/* Override Dash Checklist */
+.dark-toggle-wrap .form-check {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+}
+.dark-toggle-wrap input[type=checkbox] {
+  width: 16px !important;
+  height: 16px !important;
+  border: 1.5px solid var(--border-dark) !important;
+  border-radius: 4px !important;
+  margin: 0 !important;
+  margin-right: 10px !important;
+  padding: 0 !important;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.dark-toggle-wrap label {
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  user-select: none;
+}
+
+/* ── DataTable dark ── */
+body.dark .dash-spreadsheet-container {
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+}
+body.dark .dash-spreadsheet-container .dash-spreadsheet-inner th {
+  background: var(--bg) !important;
+  color: var(--text-muted) !important;
+  border-bottom-color: var(--border) !important;
+  border-right-color: var(--border) !important;
+}
+body.dark .dash-spreadsheet-container .dash-spreadsheet-inner td {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+  border-right-color: var(--border) !important;
+}
+body.dark .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+  background: var(--bg) !important;
+}
+body.dark .dash-spreadsheet-container .dash-spreadsheet-inner tr.row-selected td,
+body.dark .dash-spreadsheet-container .dash-spreadsheet-inner tr.row-selected:hover td {
+  background: rgba(93,144,80,0.18) !important;
+}
+body.dark .dash-filter input,
+body.dark .dash-filter .dash-input {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+body.dark .previous-page,
+body.dark .next-page,
+body.dark .last-page,
+body.dark .first-page {
+  color: var(--accent) !important;
+  fill: var(--accent) !important;
+}
+
+/* ── Inputs texte dark ── */
+body.dark input[type=text] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  outline: none !important;
+}
+body.dark input[type=text]:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(93,144,80,0.12) !important;
+  outline: none !important;
+}
+body.dark input[type=number],
+body.dark input[type=email],
+body.dark input[type=password] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Dropdown Dash (react-select v1) dark ── */
+body.dark .dash-dropdown .Select-control,
+body.dark .dash-dropdown .Select--single .Select-control,
+body.dark .dash-dropdown .Select.is-open    .Select-control {
+  background-color: var(--surface) !important;
+  background:       var(--surface) !important;
+  border-color:     var(--border)  !important;
+  color:            var(--text)    !important;
+  box-shadow: none !important;
+}
+body.dark .dash-dropdown .Select-control:hover {
+  border-color: var(--border-dark) !important;
+}
+body.dark .dash-dropdown .Select.is-focused:not(.is-open) .Select-control {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(93,144,80,0.15) !important;
+}
+body.dark .dash-dropdown .Select-placeholder {
+  color: var(--text-light) !important;
+}
+body.dark .dash-dropdown .Select-value-label,
+body.dark .dash-dropdown .Select-single-value {
+  color: var(--text) !important;
+}
+body.dark .dash-dropdown .Select-input > input,
+body.dark .dash-dropdown .Select-input input {
+  color:            var(--text) !important;
+  background-color: transparent !important;
+  background:       transparent !important;
+}
+body.dark .dash-dropdown .Select-menu-outer {
+  background-color: var(--surface) !important;
+  background:       var(--surface) !important;
+  border-color:     var(--border)  !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+body.dark .dash-dropdown .Select-menu {
+  background-color: var(--surface) !important;
+}
+body.dark .dash-dropdown .Select-option {
+  background-color: var(--surface) !important;
+  color:            var(--text)    !important;
+}
+body.dark .dash-dropdown .Select-option.is-focused {
+  background-color: var(--bg) !important;
+  color:            var(--text) !important;
+}
+body.dark .dash-dropdown .Select-option.is-selected {
+  background-color: rgba(93,144,80,0.22) !important;
+  color:            var(--accent) !important;
+}
+body.dark .dash-dropdown .Select-noresults {
+  background-color: var(--surface) !important;
+  color:            var(--text-muted) !important;
+}
+body.dark .dash-dropdown .Select-arrow-zone .Select-arrow {
+  border-top-color: var(--text-muted) !important;
+}
+body.dark .dash-dropdown .Select-clear-zone { color: var(--text-muted) !important; }
+/* VirtualizedSelect (options longues) */
+body.dark .VirtualizedSelectFocusedOption { background-color: var(--bg) !important; color: var(--text) !important; }
+body.dark .VirtualizedSelectOption        { background-color: var(--surface) !important; color: var(--text) !important; }
+body.dark .VirtualizedSelectSelectedOption{ background-color: rgba(93,144,80,0.22) !important; color: var(--accent) !important; }
+
+/* ── Cartes / surfaces génériques dark ── */
+body.dark .kpi-card,
+body.dark .score-card,
+body.dark .qc-block,
+body.dark .modal-box {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4) !important;
+}
+body.dark .modal-stat {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+}
+body.dark .modal-close:hover {
+  background: var(--border) !important;
+  color: var(--text) !important;
+}
+body.dark .tab-btn:hover {
+  background: var(--border) !important;
+  color: var(--text) !important;
+}
+body.dark .filter-btn:hover {
+  border-color: var(--border-dark) !important;
+  background: var(--border) !important;
+  color: var(--text) !important;
+}
+body.dark .btn-secondary:hover {
+  background: var(--border) !important;
+  color: var(--text) !important;
+}
+body.dark .score-track {
+  background: var(--border) !important;
+  border-color: var(--bg) !important;
+}
+
+/* ── Spinner / loading overlay dark ── */
+body.dark ._dash-loading-callback {
+  filter: opacity(0.5);
+}
+body.dark .dash-loading-callback-wrapper {
+  background: var(--bg) !important;
+}
+body.dark .dash-debug-menu,
+body.dark .dash-debug-menu__outer {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
