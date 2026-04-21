@@ -90,7 +90,7 @@ gunicorn app:server -b 0.0.0.0:8050 --workers 2 --timeout 30
 ### Option B — Docker
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.14-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
