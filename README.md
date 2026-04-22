@@ -1,3 +1,13 @@
+---
+title: CAD42 Dashboard
+emoji: 📊
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # CAD.42 — Dashboard Externe Temps Réel
 ## Migration Streamlit → Dash
 
