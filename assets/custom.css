@@ -980,7 +980,7 @@ body.dark .score-track {
 }
 
 /* ── Spinner / loading overlay dark ── */
-body.dark ._dash-loading-callback {
+body.dark ._dash-loading-callback { 
   filter: opacity(0.5);
 }
 body.dark .dash-loading-callback-wrapper {
