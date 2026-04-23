@@ -5,7 +5,6 @@ API_BASE                  = "https://api.cad42.com"
 BATTERY_WARNING_THRESHOLD = 3.5
 ENDING_SOON_DAYS          = 30
 PAST_DAYS                 = 10
-MAX_WORKERS               = 10
 
 PARASITE_KEYWORDS = {"atelier", "stock", "test", "dev"}
 

@@ -43,8 +43,9 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
     all_hors, all_manquants = [], []
     for _p in segs["total"] + segs["past"]:
         _trkrs = data["project_data"].get(_p.get("id",""), {}).get("trackers", [])
+        _proj_tz = data["project_data"].get(_p.get("id",""), {}).get("timezone", "UTC")
         _hs, _mq = check_schedule_anomalies(
-            _trkrs, _p.get("schedule", {}), now
+            _trkrs, _p.get("schedule", {}), now, _proj_tz
         )
         all_hors.extend(_hs)
         all_manquants.extend(_mq)

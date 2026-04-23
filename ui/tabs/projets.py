@@ -4,7 +4,7 @@ import pandas as pd
 from dash import dcc, html, dash_table
 
 from config import C, PARIS_TZ, PAST_DAYS
-from business.trackers import health_score, battery_status, fmt_paris, fmt_date, fmt_tz
+from business.trackers import health_score, battery_status, fmt_local, fmt_date, fmt_tz
 from business.segments import compute_segments
 from ui.components import section_label
 
@@ -66,28 +66,28 @@ def render_projets(data, bt, activity_min, ending_days, past_days, filtreTous="T
         else:                     statut = "⚪ Inactif"
 
         last_seen = max((t.get("lastUpdate","") for t in trkrs), default="")
-        last_str  = fmt_paris(last_seen)
+        last_str  = fmt_local(last_seen, pdata.get("timezone","UTC"))
 
         rows.append({
             "_pid":              p.get("id"),
             "Projet":            p.get("name","?"),
             "Type":              p.get("type","?"),
             "Statut":            statut,
+            "Dernière activité (Heure locale)": last_str,
+            "Fuseau horaire":    fmt_tz(pdata.get("timezone","UTC")),
             "Score santé":       f"{score}%",
             "Capteurs":          len(trkrs),
             "Connectés":         conn,
             "Déconnectés":       disc,
             "Batt. faible":      bat_l,
-            "Dernière activité": last_str,
             "Délai offline":     f"{delay}s",
-            "Fuseau horaire":    fmt_tz(pdata.get("timezone","UTC")),
             "Début":             fmt_date(p.get("startDate")),
             "Fin":               fmt_date(p.get("endDate")),
         })
 
     if filtreTous == "Inactifs" and rows:
         df = pd.DataFrame(rows)
-        df["_sort"] = pd.to_datetime(df["Dernière activité"], format="%d/%m/%Y %H:%M", errors="coerce")
+        df["_sort"] = pd.to_datetime(df["Dernière activité (Heure locale)"], format="%d/%m/%Y %H:%M", errors="coerce")
         df = df.sort_values("_sort", ascending=False).drop(columns=["_sort"])
         rows = df.to_dict("records")
 

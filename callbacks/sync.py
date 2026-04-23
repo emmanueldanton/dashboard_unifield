@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
-from dash import dcc, html, Output, Input, State, ctx
+import dash
+from dash import html, Output, Input, State, ctx
 
 from config import C, PARIS_TZ
 from api.client import _load_log, _load_log_lock
@@ -37,7 +38,7 @@ def register(app):
             register_creds(email, key)
             v = get_cache_version(email, key)
             if cur and cur.get("v") == v and cur.get("email") == email:
-                return dcc.no_update, False
+                return dash.no_update, False
             return {"v": v, "email": email}, False
 
         elif triggered == "btn-refresh":
@@ -55,7 +56,7 @@ def register(app):
         v       = get_cache_version(email, key)
 
         if cur and cur.get("v") == v and cur.get("email") == email:
-            return dcc.no_update, loading
+            return dash.no_update, loading
 
         return {"v": v, "email": email}, loading
 
@@ -124,8 +125,9 @@ def register(app):
             total_inactif = 0
             for _p in all_proj:
                 _trkrs = pd_map.get(_p.get("id",""), {}).get("trackers", [])
+                _proj_tz = pd_map.get(_p.get("id",""), {}).get("timezone", "UTC")
                 _hs, _mq = check_schedule_anomalies(
-                    _trkrs, _p.get("schedule", {}), now_h
+                    _trkrs, _p.get("schedule", {}), now_h, _proj_tz
                 )
                 total_hors    += len(_hs)
                 total_inactif += len(_mq)

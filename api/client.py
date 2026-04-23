@@ -1,6 +1,5 @@
 from __future__ import annotations
 import threading
-import time
 from datetime import datetime
 import requests
 
@@ -18,32 +17,29 @@ def project_headers(pid, key):
             "x-project-id": pid, "x-access-key": key}
 
 
-def safe_get(url, headers, retries=2, timeout=(2, 8)):
-    last_err = None
-    for attempt in range(retries + 1):
-        try:
-            r = requests.get(url, headers=headers, timeout=timeout)
-            if not r.ok:
-                last_err = f"HTTP {r.status_code}"
-            elif not r.text.strip():
-                return None
-            else:
-                try:
-                    return r.json()
-                except Exception:
-                    last_err = "JSON invalide"
-        except requests.exceptions.ConnectTimeout:
-            last_err = "ConnectTimeout"
-        except requests.exceptions.ReadTimeout:
-            last_err = "ReadTimeout"
-        except requests.exceptions.ConnectionError as e:
-            last_err = f"ConnectionError {str(e)[:60]}"
-        except Exception as e:
-            last_err = str(e)[:80]
-        if attempt < retries:
-            time.sleep(0.4 * (attempt + 1))
+def safe_get(url, headers, timeout=(2, 8), **kwargs):
+    try:
+        r = requests.get(url, headers=headers, timeout=timeout)
+        if not r.ok:
+            err = f"HTTP {r.status_code}"
+        elif not r.text.strip():
+            return None
+        else:
+            try:
+                return r.json()
+            except Exception:
+                err = "JSON invalide"
+    except requests.exceptions.ConnectTimeout:
+        err = "ConnectTimeout"
+    except requests.exceptions.ReadTimeout:
+        err = "ReadTimeout"
+    except requests.exceptions.ConnectionError as e:
+        err = f"ConnectionError {str(e)[:60]}"
+    except Exception as e:
+        err = str(e)[:80]
+
     with _load_log_lock:
-        _load_log.append(f"{datetime.now().strftime('%H:%M:%S')} X {url.rsplit('/',1)[-1]} — {last_err}")
+        _load_log.append(f"{datetime.now().strftime('%H:%M:%S')} X {url.rsplit('/',1)[-1]} — {err}")
         if len(_load_log) > 100:
             _load_log.pop(0)
     return None

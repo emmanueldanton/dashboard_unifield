@@ -2,7 +2,7 @@ from __future__ import annotations
 from dash import dcc, html, dash_table
 
 from config import C
-from business.trackers import _msg, fmt_paris, age_full
+from business.trackers import _msg, fmt_local, age_full
 
 
 def banner(text, tone="info"):
@@ -86,8 +86,9 @@ def build_tracker_rows(trackers):
             "Unité":            t.get("_unit_name","?"),
             "Projet":           t.get("_project_name","?"),
             "Statut":           "🟢 Connecté" if conn else "🔴 Déconnecté",
-            "Dernière activité":fmt_paris(t.get("lastUpdate","")),
+            "Dernière activité (Heure locale)": fmt_local(t.get("lastUpdate",""), t.get("_project_tz","UTC")),
             "Âge":              age_full(t.get("lastUpdate","")),
+            "Fuseau":           t.get("_project_tz", "UTC"),
             "Batt. (V)":        f"{volt:.2f}" if isinstance(volt,(int,float)) and volt > 0 else "—",
             "Peson batt":       f"{shackle:.2f}" if isinstance(shackle,(int,float)) and shackle > 0 else "—",
             "Temp.":            f"{temp:.1f}°C" if isinstance(temp,(int,float)) and temp > 0 else "—",

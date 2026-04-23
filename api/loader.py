@@ -1,6 +1,4 @@
 from __future__ import annotations
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 from datetime import datetime, timezone
 
 try:
@@ -9,21 +7,21 @@ try:
 except Exception:
     _tf = None
 
-from config import API_BASE, MAX_WORKERS
+from config import API_BASE
 from api.client import safe_get, user_headers, project_headers, _load_log, _load_log_lock
 from business.trackers import is_connected, battery_status, battery_volt, weight_status, last_seen_seconds
 
 
-def _load_one_project(p, u_hdrs, now, lock, qc):
+def _load_one_project(p, u_hdrs, now, qc):
     pid  = p.get("id","")
     name = p.get("name","?")
 
-    detail   = safe_get(f"{API_BASE}/projects/{pid}", u_hdrs, retries=2)
+    # ── Récupération du détail projet ────────────────────────
+    detail   = safe_get(f"{API_BASE}/projects/{pid}", u_hdrs, timeout=(2,8))
     proj_key = (detail or {}).get("accessKey")
     if not detail or not proj_key:
-        with lock:
-            qc["projects_no_key"] += 1
-            qc["issues"].append(f"[{name}] accessKey inaccessible.")
+        qc["projects_no_key"] += 1
+        qc["issues"].append(f"[{name}] accessKey inaccessible.")
         return pid, None
 
     p.update({
@@ -37,32 +35,32 @@ def _load_one_project(p, u_hdrs, now, lock, qc):
         "schedule":     detail.get("schedule",     {}),
         "database":     detail.get("database",     ""),
         "description":  detail.get("description",  ""),
-    })
+    })    
 
     if p.get("archived"):
-        with lock: qc["projects_loaded"] += 1
+        qc["projects_loaded"] += 1
         return pid, {"units":[],"trackers":[],"events":[],"timezone":"UTC","qc_local":{"archived":True}}
 
-    p_hdrs        = project_headers(pid, proj_key)
+    p_hdrs = project_headers(pid, proj_key)
     offline_delay = p.get("offlineDelay", 60)
 
-    units_raw = safe_get(f"{API_BASE}/units", p_hdrs, retries=2, timeout=(2,10))
+    units_raw = safe_get(f"{API_BASE}/units", p_hdrs, retries=0, timeout=(2,10))
     units     = units_raw if isinstance(units_raw, list) else []
-    with lock: qc["projects_loaded"] += 1
+    qc["projects_loaded"] += 1
 
     if not units:
-        with lock: qc["projects_empty"] += 1
+        qc["projects_empty"] += 1
         return pid, {"units":[],"trackers":[],"events":[],"timezone":"UTC","qc_local":{"empty":True}}
 
-    with lock: qc["projects_with_data"] += 1
+    qc["projects_with_data"] += 1
 
     proj_events = []
-    ev_raw = safe_get(f"{API_BASE}/events", p_hdrs, retries=1)
+    ev_raw = safe_get(f"{API_BASE}/events", p_hdrs, retries=0)
     if ev_raw and isinstance(ev_raw, list):
         proj_events = [{**e,"_project_name":name,"_project_id":pid} for e in ev_raw[:50]]
-        with lock: qc["has_events"] = True
+        qc["has_events"] = True
 
-    tr_raw       = safe_get(f"{API_BASE}/trackers", p_hdrs, retries=2, timeout=(2,10))
+    tr_raw       = safe_get(f"{API_BASE}/trackers", p_hdrs, retries=0, timeout=(2,10))
     trackers_map = {}
     if isinstance(tr_raw, list):
         for tr in tr_raw:
@@ -132,15 +130,17 @@ def _load_one_project(p, u_hdrs, now, lock, qc):
                     proj_tz = tz
                     break
 
-    with lock:
-        qc["units_total"]            += len(local_units)
-        qc["units_no_tracker"]       += local_qc["units_no_tracker"]
-        qc["trackers_total"]         += local_qc["trackers"]
-        qc["trackers_no_lastupdate"] += local_qc["trackers_no_lastupdate"]
-        qc["trackers_no_lasttrack"]  += local_qc["trackers_no_lasttrack"]
-        qc["trackers_duplicate_id"]  += local_qc["trackers_duplicate"]
-        qc["trackers_stale_24h"]     += local_qc["trackers_stale"]
-        qc["tracker_ids_seen"].update(seen_ids)
+    for t in local_trackers:
+        t["_project_tz"] = proj_tz
+
+    qc["units_total"]            += len(local_units)
+    qc["units_no_tracker"]       += local_qc["units_no_tracker"]
+    qc["trackers_total"]         += local_qc["trackers"]
+    qc["trackers_no_lastupdate"] += local_qc["trackers_no_lastupdate"]
+    qc["trackers_no_lasttrack"]  += local_qc["trackers_no_lasttrack"]
+    qc["trackers_duplicate_id"]  += local_qc["trackers_duplicate"]
+    qc["trackers_stale_24h"]     += local_qc["trackers_stale"]
+    qc["tracker_ids_seen"].update(seen_ids)
 
     return pid, {"units":local_units,"trackers":local_trackers,
                  "events":proj_events,"timezone":proj_tz,"qc_local":local_qc}
@@ -149,8 +149,9 @@ def _load_one_project(p, u_hdrs, now, lock, qc):
 def load_all_data(email, key):
     with _load_log_lock:
         _load_log.clear()
+
     u_hdrs = user_headers(email, key)
-    raw    = safe_get(f"{API_BASE}/projects", u_hdrs, retries=3, timeout=(3,10))
+    raw    = safe_get(f"{API_BASE}/projects", u_hdrs, retries=0, timeout=(3,10))
     if not raw:
         return {"projects":[],"project_data":{},"all_units":[],
                 "all_trackers":[],"all_events":[],"qc":{},"loaded_at":None}
@@ -158,38 +159,47 @@ def load_all_data(email, key):
     all_proj     = raw if isinstance(raw, list) else [raw]
     project_data = {}
     all_units, all_trackers, all_events = [], [], []
-    now  = datetime.now(timezone.utc)
-    lock = threading.Lock()
+    now = datetime.now(timezone.utc)
 
     qc = {
-        "total_projects":0,"projects_loaded":0,"projects_no_key":0,
-        "projects_empty":0,"projects_with_data":0,"units_total":0,
-        "units_no_tracker":0,"trackers_total":0,"trackers_no_lastupdate":0,
-        "trackers_no_lasttrack":0,"trackers_duplicate_id":0,"trackers_stale_24h":0,
-        "has_events":False,"tracker_ids_seen":set(),"issues":[],
-        "total_projects": len(all_proj),
+        "total_projects":     len(all_proj),
+        "projects_loaded":    0,
+        "projects_no_key":    0,
+        "projects_empty":     0,
+        "projects_with_data": 0,
+        "units_total":        0,
+        "units_no_tracker":   0,
+        "trackers_total":     0,
+        "trackers_no_lastupdate": 0,
+        "trackers_no_lasttrack":  0,
+        "trackers_duplicate_id":  0,
+        "trackers_stale_24h":     0,
+        "has_events":         False,
+        "tracker_ids_seen":   set(),
+        "issues":             [],
     }
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
-        futures = {ex.submit(_load_one_project, p, u_hdrs, now, lock, qc): p for p in all_proj}
-        for future in as_completed(futures):
-            try:
-                pid, result = future.result(timeout=30)
-            except FuturesTimeout:
-                continue
-            except Exception:
-                continue
-            if result is None: continue
-            p = next((x for x in all_proj if x.get("id") == pid), None)
-            if p is None: continue
-            project_data[pid] = result
-            all_units.extend(result["units"])
-            all_trackers.extend(result["trackers"])
-            all_events.extend(result["events"])
+    for p in all_proj:
+        try:
+            pid, result = _load_one_project(p, u_hdrs, now, qc)
+        except Exception:
+            continue
+        if result is None:
+            continue
+        project_data[pid] = result
+        all_units.extend(result["units"])
+        all_trackers.extend(result["trackers"])
+        all_events.extend(result["events"])
 
     qc["tracker_ids_unique"] = len(qc["tracker_ids_seen"])
     del qc["tracker_ids_seen"]
 
-    return {"projects":all_proj,"project_data":project_data,"all_units":all_units,
-            "all_trackers":all_trackers,"all_events":all_events,"qc":qc,
-            "loaded_at":datetime.now(timezone.utc).isoformat()}
+    return {
+        "projects":     all_proj,
+        "project_data": project_data,
+        "all_units":    all_units,
+        "all_trackers": all_trackers,
+        "all_events":   all_events,
+        "qc":           qc,
+        "loaded_at":    datetime.now(timezone.utc).isoformat(),
+    }

@@ -5,7 +5,7 @@ from dash import html, Output, Input, State
 
 from config import C, PARIS_TZ, BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS
 from cache import get_cached_data
-from business.trackers import (health_score, battery_status, fmt_paris,
+from business.trackers import (health_score, battery_status, fmt_local,
                                 fmt_date, fmt_tz, _msg)
 from business.segments import compute_segments
 from ui.components import section_label, make_table, build_tracker_rows
@@ -54,7 +54,7 @@ def register(app):
         else:                     statut = "⚪ Inactif"
 
         last_seen = max((t.get("lastUpdate","") for t in trkrs), default="")
-        last_str  = fmt_paris(last_seen)
+        last_str  = fmt_local(last_seen, pdata.get("timezone","UTC"))
 
         def fmt_schedule(schedule):
             if not schedule:
@@ -104,7 +104,7 @@ def register(app):
                 stat("Connectés",         conn),
                 stat("Déconnectés",       disc),
                 stat("Batt. faible",      bat_l),
-                stat("Dernière activité", last_str),
+                stat("Dernière activité (Heure locale)", last_str),
                 stat("Début",             fmt_date(p.get("startDate"))),
                 stat("Fin",               fmt_date(p.get("endDate"))),
                 html.Div([
@@ -215,7 +215,7 @@ def register(app):
         event_rows = []
         for e in capteur_events[:10]:
             ts  = e.get("timestamp") or e.get("createdAt") or e.get("date") or ""
-            ts_str = fmt_paris(str(ts)) if ts else "—"
+            ts_str = fmt_local(str(ts), tracker.get("_project_tz","UTC")) if ts else "—"
             event_rows.append({
                 "Date":    ts_str,
                 "Type":    e.get("type") or e.get("eventType") or "?",
@@ -236,9 +236,9 @@ def register(app):
 
             html.Div([
                 stat("Statut", "🟢 Connecté" if conn else "🔴 Déconnecté"),
-                stat("Dernière activité", fmt_paris(tracker.get("lastUpdate",""))),
+                stat("Dernière activité (Heure locale)", fmt_local(tracker.get("lastUpdate",""), tracker.get("_project_tz","UTC"))),
                 stat("Allumage ce matin",
-                     fmt_paris(boot_this_morning.isoformat()) if boot_this_morning else "Non détecté"),
+                     fmt_local(boot_this_morning.isoformat(), tracker.get("_project_tz","UTC")) if boot_this_morning else "Non détecté"),
                 stat("Batterie (V)",
                      f"{volt:.2f} V" if volt > 0 else "—"),
                 stat("Peson batterie",

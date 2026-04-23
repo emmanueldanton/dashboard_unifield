@@ -1,5 +1,6 @@
 from __future__ import annotations
-from config import PARIS_TZ
+from datetime import timezone
+from zoneinfo import ZoneInfo
 
 
 def parse_schedule(schedule):
@@ -60,13 +61,17 @@ def is_time_in_schedule(dt_paris, parsed_schedule):
     return False
 
 
-def check_schedule_anomalies(trackers, schedule, now):
+def check_schedule_anomalies(trackers, schedule, now, tz_str="UTC"):
     parsed = parse_schedule(schedule)
     if parsed is None:
         return [], []
 
-    paris_now       = now.astimezone(PARIS_TZ)
-    in_schedule_now = is_time_in_schedule(paris_now, parsed)
+    try:
+        local_tz = ZoneInfo(tz_str) if tz_str else timezone.utc
+    except Exception:
+        local_tz = timezone.utc
+    local_now       = now.astimezone(local_tz)
+    in_schedule_now = is_time_in_schedule(local_now, parsed)
 
     hors_schedule = []
     manquants     = []

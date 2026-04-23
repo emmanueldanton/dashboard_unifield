@@ -131,3 +131,17 @@ def fmt_paris(date_str):
         return dt.astimezone(PARIS_TZ).strftime("%d/%m/%Y %H:%M")
     except:
         return "?"
+
+
+def fmt_local(date_str, tz_str="UTC"):
+    if not date_str:
+        return "Jamais"
+    try:
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        try:
+            tz = ZoneInfo(tz_str) if tz_str else PARIS_TZ
+        except Exception:
+            tz = PARIS_TZ
+        return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M")
+    except:
+        return "?"
