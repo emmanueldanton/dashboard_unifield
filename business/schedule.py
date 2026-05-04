@@ -61,7 +61,7 @@ def is_time_in_schedule(dt_paris, parsed_schedule):
     return False
 
 
-def check_schedule_anomalies(trackers, schedule, now, tz_str="UTC"):
+def check_schedule_anomalies(trackers, schedule, now, tz_str="UTC", activity_sec=86400):
     parsed = parse_schedule(schedule)
     if parsed is None:
         return [], []
@@ -81,7 +81,9 @@ def check_schedule_anomalies(trackers, schedule, now, tz_str="UTC"):
         last_sec  = t.get("_last_seen_seconds", -1)
 
         if in_schedule_now:
-            if not connected:
+            has_weight      = t.get("_weight_status") == "ok"
+            recently_active = 0 <= last_sec < activity_sec
+            if not connected and has_weight and recently_active:
                 manquants.append(t)
         else:
             if connected or (0 <= last_sec < 3600):

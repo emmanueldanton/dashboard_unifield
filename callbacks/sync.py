@@ -113,29 +113,35 @@ def register(app):
             data  = filter_data(data)
             qc    = data["qc"]
             now_h = datetime.now(timezone.utc)
+            bt, ed, am = seuils["bt"], seuils["ed"], seuils.get("am","00:01")
+            now   = datetime.now(timezone.utc)
+            _pnow = now.astimezone(PARIS_TZ)
+            _rh, _rm = map(int, am.split(":"))
+            _act_sec = max(1, int((_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()))
 
             all_t    = data.get("all_trackers", [])
             all_proj = data.get("projects", [])
             pd_map   = data.get("project_data", {})
 
-            total_ko      = sum(1 for t in all_t
-                                if not t.get("_is_connected", False)
-                                or battery_status(t) == "faible")
+            total_bat_low = sum(1 for t in all_t
+                    if battery_status(t, bt) == "faible"
+                    and 0 <= t.get("_last_seen_seconds", -1) < _act_sec)
+            
             total_hors    = 0
             total_inactif = 0
             for _p in all_proj:
                 _trkrs = pd_map.get(_p.get("id",""), {}).get("trackers", [])
                 _proj_tz = pd_map.get(_p.get("id",""), {}).get("timezone", "UTC")
                 _hs, _mq = check_schedule_anomalies(
-                    _trkrs, _p.get("schedule", {}), now_h, _proj_tz
+                    _trkrs, _p.get("schedule", {}), now_h, _proj_tz, _act_sec
                 )
                 total_hors    += len(_hs)
                 total_inactif += len(_mq)
 
             flag_items = []
-            if total_ko > 0:
+            if total_bat_low > 0:
                 flag_items.append(
-                    html.Span(f"⚡ {total_ko} KO",
+                    html.Span(f"🔋 {total_bat_low} batt. faible",
                               style={"background":C["red"],"color":"#fff","fontSize":"0.68rem",
                                      "fontWeight":"700","padding":"2px 8px","borderRadius":"20px",
                                      "marginLeft":"6px"})
@@ -192,7 +198,9 @@ def register(app):
                                 now, _act_sec, ed, PAST_DAYS)
         all_t   = data["all_trackers"]
         conn    = [t for t in all_t if t.get("_is_connected",False)]
-        bat_low = [t for t in all_t if battery_status(t, bt) == "faible"]
+        bat_low = [t for t in all_t 
+           if battery_status(t, bt) == "faible"
+           and 0 <= t.get("_last_seen_seconds", -1) < _act_sec]
         pct     = round(len(conn)/len(all_t)*100) if all_t else 0
 
         return [

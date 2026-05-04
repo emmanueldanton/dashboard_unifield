@@ -13,6 +13,14 @@ def render_qc(data):
         ("Sans accessKey",      qc.get("projects_no_key",0),       "ok" if qc.get("projects_no_key",0)==0 else "err"),
         ("Projets vides",       qc.get("projects_empty",0),        "ok" if qc.get("projects_empty",0)==0 else "warn"),
         ("Avec donnees",        qc.get("projects_with_data",0),    "info"),
+        ("Projets avec schedule", sum(1 for p in data.get("projects",[]) if p.get("schedule")), "info"),
+        ("Projets sans schedule", sum(1 for p in data.get("projects",[]) if not p.get("schedule")), "warn"),
+        ("Projets actifs sans schedule",
+            sum(1 for p in data.get("projects",[])
+                if not p.get("schedule")
+                and not p.get("archived")
+                and data.get("project_data",{}).get(p.get("id",{}), {}).get("trackers")),
+            "warn"),
         ("Unites total",        qc.get("units_total",0),           "info"),
         ("Unites sans capteur", qc.get("units_no_tracker",0),      "ok" if qc.get("units_no_tracker",0)==0 else "warn"),
         ("Trackers total",      qc.get("trackers_total",0),        "info"),

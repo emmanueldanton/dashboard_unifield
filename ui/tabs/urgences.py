@@ -18,8 +18,9 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
     segs = compute_segments(data["projects"], data["project_data"], now,
                             activity_sec, ending_days, past_days)
     all_t        = data["all_trackers"]
-    disconnected = [t for t in all_t if not t.get("_is_connected", False)]
-    battery_low  = [t for t in all_t if battery_status(t, bt) == "faible"]
+    battery_low = [t for t in all_t 
+               if battery_status(t, bt) == "faible"
+               and 0 <= t.get("_last_seen_seconds", -1) < activity_sec]
 
     from business.trackers import _msg
     battery_unk  = [t for t in all_t if battery_status(t, bt) == "inconnu" and "battery_volt" in _msg(t)]
@@ -45,7 +46,7 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
         _trkrs = data["project_data"].get(_p.get("id",""), {}).get("trackers", [])
         _proj_tz = data["project_data"].get(_p.get("id",""), {}).get("timezone", "UTC")
         _hs, _mq = check_schedule_anomalies(
-            _trkrs, _p.get("schedule", {}), now, _proj_tz
+            _trkrs, _p.get("schedule", {}), now, _proj_tz, activity_sec
         )
         all_hors.extend(_hs)
         all_manquants.extend(_mq)
@@ -58,10 +59,8 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
         "Capteurs": len(data["project_data"].get(p.get("id"),{}).get("trackers",[])),
     } for p in anomalies]
 
-    nb_urg = (len(disconnected) + len(battery_low) +
-              len(ending_rows) + len(all_hors) + len(all_manquants) + len(anomalies))
+    nb_urg = (len(battery_low) + len(ending_rows) + len(all_hors) + len(all_manquants) + len(anomalies))
 
-    disc_rows   = build_tracker_rows(disconnected)
     batl_rows   = build_tracker_rows(battery_low)
     batunk_rows = build_tracker_rows(battery_unk)
     wunk_rows   = build_tracker_rows(weight_unk)
@@ -76,11 +75,16 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
         ),
         html.Div(style={"height":"16px"}),
 
-        collapsible("Capteurs déconnectés", len(disconnected),
-            make_table_searchable(disc_rows, "deconnectes") if disc_rows
-            else banner("Tous les capteurs sont connectés.", "ok"),
-            tone="danger" if disconnected else "ok"),
+        collapsible("Capteurs inactifs pendant horaire", len(all_manquants),
+            make_table_searchable(mq_rows, "inactif_schedule") if mq_rows
+            else banner("Tous les capteurs actifs pendant les heures prévues.", "ok"),
+            tone="warn" if all_manquants else None),
 
+        collapsible("Capteurs actifs hors horaire", len(all_hors),
+            make_table_searchable(hors_rows, "hors_schedule") if hors_rows
+            else banner("Aucun capteur actif hors des heures prévues.", "ok"),
+            tone="warn" if all_hors else None),
+        
         collapsible("Batterie faible", len(battery_low),
             make_table_searchable(batl_rows, "batterie_faible") if batl_rows
             else banner("Toutes les batteries sont au-dessus du seuil.", "ok"),
@@ -96,15 +100,6 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
             else banner("Tous les pesons transmettent des données.", "ok"),
             tone="warn" if weight_unk else None),
 
-        collapsible("Capteurs actifs hors horaire", len(all_hors),
-            make_table_searchable(hors_rows, "hors_schedule") if hors_rows
-            else banner("Aucun capteur actif hors des heures prévues.", "ok"),
-            tone="warn" if all_hors else None),
-
-        collapsible("Capteurs inactifs pendant horaire", len(all_manquants),
-            make_table_searchable(mq_rows, "inactif_schedule") if mq_rows
-            else banner("Tous les capteurs actifs pendant les heures prévues.", "ok"),
-            tone="warn" if all_manquants else None),
 
         collapsible("Projets bientôt terminés", len(ending_rows),
             make_table_searchable(ending_rows, "fin_imminente") if ending_rows
