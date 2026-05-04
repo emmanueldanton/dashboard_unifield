@@ -7,9 +7,26 @@ from config import BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS
 def sidebar():
     return html.Div([
         html.Div([
-            html.Div("CAD.42", className="logo-name"),
-            html.Div("UNIFIELD Dashboard", className="logo-sub"),
-        ]),
+            html.Div([
+                html.Div("CAD.42", className="logo-name"),
+                html.Div("UNIFIELD Dashboard", className="logo-sub"),
+            ]),
+            html.Button(
+                "📖",
+                id="btn-open-doc",
+                n_clicks=0,
+                title="Documentation",
+                style={
+                    "background":   "transparent",
+                    "border":       "none",
+                    "fontSize":     "1rem",
+                    "cursor":       "pointer",
+                    "padding":      "4px",
+                    "color":        "var(--text-muted)",
+                    "alignSelf":    "flex-start",
+                }
+            ),
+        ], style={"display":"flex","justifyContent":"space-between","alignItems":"flex-start"}),
         html.Hr(className="sb-hr"),
         html.Div("Connexion", className="sb-section"),
         html.Label("Email", className="sb-label"),

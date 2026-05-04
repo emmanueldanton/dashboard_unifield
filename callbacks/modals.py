@@ -321,3 +321,159 @@ def register(app):
     )
     def open_archives(n):
         return True if n else False
+
+    @app.callback(
+        Output("store-doc-open", "data"),
+        Input("btn-open-doc", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def open_doc(n):
+        return True if n else False
+
+    @app.callback(
+        Output("modal-container", "children", allow_duplicate=True),
+        Input("store-doc-open", "data"),
+        prevent_initial_call=True,
+    )
+    def show_modal_doc(open_flag):
+        if not open_flag:
+            return html.Div()
+
+        def section(title, items):
+            return html.Details([
+                html.Summary(title, style={
+                    "fontSize": "0.78rem", "fontWeight": "700",
+                    "color": C["accent"], "cursor": "pointer",
+                    "padding": "10px 0", "letterSpacing": "0.05em",
+                    "textTransform": "uppercase",
+                    "borderBottom": f"1px solid {C['border']}",
+                    "listStyle": "none",
+                }),
+                html.Div([
+                    html.Div([
+                        html.Div(label, style={
+                            "fontWeight": "600", "fontSize": "0.82rem",
+                            "color": C["text"], "marginBottom": "2px"
+                        }),
+                        html.Div(desc, style={
+                            "fontSize": "0.78rem", "color": C["text_muted"],
+                            "lineHeight": "1.6"
+                        }),
+                    ], style={"marginBottom": "12px"})
+                    for label, desc in items
+                ], style={"padding": "12px 0"}),
+            ], open=False, style={"marginBottom": "4px"})
+
+        modal = html.Div([
+            html.Div([
+                html.Div([
+                    html.Div("📖 Documentation", className="modal-title"),
+                    html.Div("Logique des calculs et données affichées",
+                            style={"fontSize":"0.78rem","color":C["text_muted"],"marginTop":"4px"}),
+                ]),
+                html.Button("✕", id="btn-close-doc", className="modal-close"),
+            ], className="modal-header"),
+
+            html.Div([
+
+                section("KPIs — Vue d'ensemble", [
+                    ("Projets actifs",
+                    "Projets ayant au moins un capteur avec un lastUpdate récent depuis l'heure 'Activité depuis' configurée dans la sidebar. Calculé en heure de Paris."),
+                    ("Fin imminente",
+                    "Projets dont la date de fin (endDate) est dans moins de X jours. X = seuil 'Fin imminente' de la sidebar (défaut : 30 jours)."),
+                    ("Projets terminés",
+                    "Projets dont la date de fin est dépassée mais qui ne sont pas encore archivés dans UNIFIELD."),
+                    ("Capteurs connectés",
+                    "Capteurs dont le lastUpdate est inférieur au délai offline du projet (offlineDelay, souvent 60s). Le pourcentage représente la santé globale du parc."),
+                    ("Batterie faible",
+                    "Capteurs dont la tension (battery_volt) est sous le seuil configuré (défaut : 3.5V), ET ayant émis depuis l'heure 'Activité depuis'."),
+                ]),
+
+                section("Urgences", [
+                    ("Capteurs inactifs pendant horaire",
+                    "Capteurs déconnectés alors que : (1) le schedule du projet est actif en ce moment, (2) le capteur a émis aujourd'hui depuis 'Activité depuis', (3) le capteur a un peson fonctionnel (weight_status = ok)."),
+                    ("Capteurs actifs hors horaire",
+                    "Capteurs connectés ou ayant émis dans la dernière heure, alors que le schedule du projet indique que les équipements devraient être éteints."),
+                    ("Batterie faible",
+                    "Même logique que le KPI — capteurs avec battery_volt < seuil ET actifs depuis 'Activité depuis'. Les capteurs perdus depuis plusieurs jours sont exclus."),
+                    ("Batterie inconnue",
+                    "Capteurs dont le champ battery_volt est présent dans le message mais avec une valeur invalide ou absente."),
+                    ("Peson inconnu",
+                    "Capteurs dont le champ weight est présent dans le message mais avec une valeur invalide (< 0 ou absente)."),
+                    ("Projets bientôt terminés",
+                    "Projets dont la date de fin est dans moins de X jours (seuil configurable)."),
+                    ("Projets terminés encore actifs",
+                    "Projets dont la date de fin est dépassée mais qui ont encore des capteurs émettant aujourd'hui. Anomalie à investiguer."),
+                ]),
+
+                section("Scores de santé", [
+                    ("Formule du score",
+                    "Pour chaque capteur : +50 pts si connecté, +30 pts si batterie OK, +20 pts si poids mesuré. Score = moyenne des points / nombre de capteurs."),
+                    ("Excellent (≥ 80%)", "Tous les capteurs connectés, batteries OK, poids mesurés."),
+                    ("Bon (55–79%)",      "La majorité des capteurs fonctionne correctement."),
+                    ("Moyen (30–54%)",    "Plusieurs capteurs déconnectés ou batteries faibles."),
+                    ("Critique (< 30%)",  "La majorité des capteurs est en anomalie."),
+                    ("Badges de flags",
+                    "🔋 X batt. faible = Nombre de capteurs avec batterie faible ayant émis depuis 'Activité depuis'. 🕐 Hors schedule = actifs hors horaire. ⚠ Inactif = silencieux pendant les heures prévues."),
+                ]),
+
+                section("Projets", [
+                    ("Actifs",
+                    "Signal depuis l'heure 'Activité depuis'. Fenêtre calculée depuis minuit heure de Paris si schedule défini."),
+                    ("Inactifs",
+                    "Projets en cours mais sans signal depuis 'Activité depuis'."),
+                    ("Fin imminente",
+                    "endDate dans moins de X jours (seuil configurable)."),
+                    ("Récemment terminés",
+                    "endDate dépassée, non encore archivé. Hors du parc actif."),
+                    ("Fuseau horaire",
+                    "Détecté automatiquement via les coordonnées GPS du dernier lastTrack. Fallback sur UTC si aucun GPS disponible."),
+                ]),
+
+                section("Capteurs", [
+                    ("Statut connecté",
+                    "lastUpdate du capteur inférieur au offlineDelay du projet (souvent 60 secondes)."),
+                    ("Dernière activité",
+                    "lastUpdate converti en heure locale du projet (fuseau GPS détecté ou UTC)."),
+                    ("Allumage ce matin",
+                    "Premier event de type boot/connect/power_on détecté aujourd'hui pour ce capteur."),
+                    ("Batterie (V)",
+                    "Valeur battery_volt dans lastTrack.message."),
+                    ("Peson batterie",
+                    "Valeur shackle_battery dans lastTrack.message — batterie du peson lui-même."),
+                    ("Poids (kg)",
+                    "Valeur weight dans lastTrack.message."),
+                    ("GPS",
+                    "Coordonnées lat/lon de lastTrack. Cliquable vers Google Maps."),
+                ]),
+
+                section("Paramètres de la sidebar", [
+                    ("Batterie faible (V)",
+                    "Seuil de tension en dessous duquel un capteur est considéré en batterie faible. Défaut : 3.5V."),
+                    ("Fin imminente (jours)",
+                    "Nombre de jours avant la date de fin d'un projet pour déclencher l'alerte 'Fin imminente'. Défaut : 30 jours."),
+                    ("Activité depuis",
+                    "Heure de référence (heure de Paris) à partir de laquelle un capteur est considéré actif aujourd'hui. Défaut : 00:01. Exemple : 07:00 = seuls les capteurs ayant émis depuis 7h ce matin sont considérés actifs."),
+                ]),
+
+            ], style={"overflowY": "auto", "maxHeight": "65vh", "padding": "0 4px"}),
+
+        ], className="modal-box", style={"maxWidth": "680px", "width": "90vw"})
+
+        return html.Div([
+            html.Div(id="modal-doc-bg", n_clicks=0, className="modal-backdrop"),
+            modal,
+        ], className="modal-overlay")
+
+    app.clientside_callback(
+        """
+        function(n1, n2) {
+            if (n1 || n2) return false;
+            return window.dash_clientside.no_update;
+        }
+        """,
+        Output("store-doc-open", "data", allow_duplicate=True),
+        Input("btn-close-doc", "n_clicks"),
+        Input("modal-doc-bg",  "n_clicks"),
+        prevent_initial_call=True,
+    )
