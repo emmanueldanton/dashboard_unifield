@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8050:8050"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  alerter:
+    build: .
+    command: python alerter.py
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - dashboard
