@@ -16,12 +16,13 @@ UNIFIELD_EMAIL = os.getenv("UNIFIELD_EMAIL", "")
 UNIFIELD_KEY   = os.getenv("UNIFIELD_KEY", "")
 INTERVAL_MIN   = int(os.getenv("ALERT_INTERVAL_MINUTES", "10"))
 
-# State en mémoire — ids des alertes actives au cycle précédent
+# State en mémoire — ids et détails des alertes actives au cycle précédent
 _previous_alert_ids: set[str] = set()
+_previous_alert_map: dict[str, dict] = {}
 
 
 def check_and_alert():
-    global _previous_alert_ids
+    global _previous_alert_ids, _previous_alert_map
     logger.info("Démarrage du cycle de vérification...")
 
     try:
@@ -36,9 +37,13 @@ def check_and_alert():
     logger.info(f"Alertes actives : {len(current_alerts)} | Nouvelles : {len(new_issues)} | Résolues : {len(resolved_ids)}")
 
     if new_issues or resolved_ids:
-        # Construire la liste des alertes résolues avec leur dernier état connu
+        # Récupérer le dernier état connu des alertes résolues (noms lisibles)
         resolved_details = [
-            {"type": "Résolu", "project": rid, "detail": ""}
+            {
+                "type":    "Résolu",
+                "project": _previous_alert_map.get(rid, {}).get("project", rid),
+                "detail":  _previous_alert_map.get(rid, {}).get("detail", ""),
+            }
             for rid in resolved_ids
         ]
 
@@ -53,8 +58,9 @@ def check_and_alert():
     else:
         logger.info("Aucun changement détecté — aucun mail envoyé")
 
-    # Mettre à jour l'état
+    # Mettre à jour l'état (ids + map complet pour les résolutions futures)
     _previous_alert_ids = {a["id"] for a in current_alerts}
+    _previous_alert_map = {a["id"]: a for a in current_alerts}
 
 
 if __name__ == "__main__":

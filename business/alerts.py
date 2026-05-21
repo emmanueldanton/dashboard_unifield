@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 # Seuils configurables via variables d'environnement (avec valeurs par défaut)
 import os
 DISCONNECT_THRESHOLD_HOURS = int(os.getenv("DISCONNECT_THRESHOLD_HOURS", "2"))
-BATTERY_THRESHOLD_PERCENT  = float(os.getenv("BATTERY_THRESHOLD_PERCENT", "20"))
+BATTERY_THRESHOLD_VOLT     = float(os.getenv("BATTERY_THRESHOLD_VOLT", "3.5"))
 ENDING_SOON_DAYS           = int(os.getenv("ENDING_SOON_DAYS", "7"))
 
 
@@ -37,14 +37,18 @@ def detect_alerts(data: dict) -> list[dict]:
                 "severity": "critique",
             })
 
-        # Batterie faible
-        battery = tracker.get("_battery_percent", None)
-        if battery is not None and battery < BATTERY_THRESHOLD_PERCENT:
+        # Batterie faible — utilise _battery_volt et _battery_status (champs réels du loader)
+        battery_status = tracker.get("_battery_status", "")
+        battery_volt   = tracker.get("_battery_volt", None)
+        if battery_status in ("low", "critical") or (
+            battery_volt is not None and battery_volt < BATTERY_THRESHOLD_VOLT
+        ):
+            volt_str = f" ({battery_volt:.2f}V)" if battery_volt is not None else ""
             alerts.append({
                 "id":       f"battery_{t_id}",
                 "type":     "Batterie faible",
                 "project":  label,
-                "detail":   f"Niveau batterie : {battery:.0f}%",
+                "detail":   f"Statut batterie : {battery_status}{volt_str}",
                 "severity": "warning",
             })
 
