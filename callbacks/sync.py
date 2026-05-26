@@ -1,12 +1,13 @@
 from __future__ import annotations
 from datetime import datetime, timezone
+
 import dash
 from dash import html, Output, Input, State, ctx
 
 from config import C, PARIS_TZ
-from api.client import _load_log, _load_log_lock
 from cache import (register_creds, force_refresh, invalidate,
-                   get_cache_version, get_cached_data, _state)
+                   get_cache_version, get_cached_data, _state,
+                   is_mongo_ok, last_success_ts)
 from business.trackers import battery_status, filter_data
 from business.schedule import check_schedule_anomalies
 from business.segments import compute_segments
@@ -15,208 +16,139 @@ from ui.components import kpi_card
 
 def register(app):
 
+    # ── Trigger force-refresh every 15 min and on btn-refresh click ───────────
     @app.callback(
         Output("store-ver",     "data"),
         Output("store-loading", "data"),
         Input("btn-refresh",    "n_clicks"),
-        Input("btn-clear",      "n_clicks"),
+        Input("interval-15min", "n_intervals"),
         Input("store-creds",    "data"),
-        Input("interval-ui",    "n_intervals"),
         State("store-ver",      "data"),
         prevent_initial_call=False,
     )
-    def sync_ver(nrefresh, nclear, creds, _, cur):
-        if not creds:
-            return {"v": 0, "email": ""}, False
-        email, key = creds.get("email",""), creds.get("key","")
-        if not email or not key:
-            return {"v": 0, "email": ""}, False
-
+    def sync_ver(nrefresh, n15, creds, cur):
         triggered = ctx.triggered_id
 
         if triggered == "store-creds":
-            register_creds(email, key)
-            v = get_cache_version(email, key)
-            if cur and cur.get("v") == v and cur.get("email") == email:
+            register_creds()
+            v = get_cache_version()
+            if cur and cur.get("v") == v:
                 return dash.no_update, False
+            email = (creds or {}).get("email", "")
             return {"v": v, "email": email}, False
 
-        elif triggered == "btn-refresh":
-            register_creds(email, key)
-            force_refresh(email, key)
+        if triggered == "btn-refresh":
+            register_creds()
+            force_refresh()
+            email = (creds or {}).get("email", "")
             return {"v": 0, "email": email}, True
 
-        elif triggered == "btn-clear":
-            invalidate(email, key)
-            register_creds(email, key)
-            return {"v": 0, "email": email}, False
+        if triggered == "interval-15min":
+            register_creds()
+            force_refresh()
+            email = (creds or {}).get("email", "")
+            return {"v": 0, "email": email}, True
 
-        state   = _state(email, key)
+        email = (creds or {}).get("email", "")
+        state = _state()
         loading = state.get("loading", False)
-        v       = get_cache_version(email, key)
-
-        if cur and cur.get("v") == v and cur.get("email") == email:
+        v = get_cache_version()
+        if cur and cur.get("v") == v:
             return dash.no_update, loading
-
         return {"v": v, "email": email}, loading
 
+    # interval-ui is enabled only while loading (animation only) ─ D-008
     @app.callback(
         Output("interval-ui", "disabled"),
         Input("store-loading", "data"),
     )
-    def toggle_interval(loading):
+    def toggle_interval_ui(loading):
         return not loading
 
+    # ── MongoDB connectivity status → conn-status store ───────────────────────
     @app.callback(
-        Output("conn-status",    "children"),
-        Output("page-meta",      "children"),
-        Output("load-bar-wrap",  "style"),
-        Output("load-hint-text", "children"),
-        Input("store-ver",   "data"),
-        Input("interval-ui", "n_intervals"),
-        State("store-creds", "data"),
-        State("store-seuils", "data")
+        Output("conn-status", "data"),
+        Input("store-ver",    "data"),
     )
-    def update_status(ver, _, creds, seuils):
-        hide = {"display":"none"}
-        show = {"display":"block"}
-        if not creds:
-            return (html.Div([html.Span(className="dot-wait"),
-                              html.Span("En attente d'identifiants")], className="conn-row"),
-                    "", hide, "")
+    def update_conn_status(_ver):
+        return is_mongo_ok()
 
-        email, key = creds.get("email",""), creds.get("key","")
-        state      = _state(email, key)
-        data       = state.get("data")
-        loading    = state.get("loading", False)
-        err        = state.get("error")
+    # ── Header metadata (last refresh, conn indicator) ────────────────────────
+    @app.callback(
+        Output("header-last-refresh", "children"),
+        Output("header-conn-status",  "children"),
+        Output("header-user-email",   "children"),
+        Input("store-ver",   "data"),
+        Input("conn-status", "data"),
+        State("store-creds", "data"),
+    )
+    def update_header_meta(_ver, mongo_ok, creds):
+        email = (creds or {}).get("email", "")
 
-        with _load_log_lock:
-            load_text = _load_log[-1][-60:] if _load_log else "Connexion a UNIFIELD..."
+        last_ts = last_success_ts()
+        if last_ts:
+            last_str = datetime.fromtimestamp(last_ts, tz=PARIS_TZ).strftime("%d/%m %H:%M")
+            refresh_label = f"Dernière MAJ : {last_str}"
+        else:
+            refresh_label = "Aucune donnée chargée"
 
-        if err:       dot, text = html.Span(className="dot-err"),  f"Erreur : {err[:80]}"
-        elif loading: dot, text = html.Span(className="dot-load"), "Chargement en cours..."
-        elif data:    dot, text = html.Span(className="dot-live"), "Donnees disponibles"
-        else:         dot, text = html.Span(className="dot-wait"), "Cliquez sur Actualiser"
+        if mongo_ok:
+            conn_el = html.Span([
+                html.Span(className="dot-live"), " MongoDB OK"
+            ], className="conn-badge conn-ok")
+        else:
+            conn_el = html.Span([
+                html.Span(className="dot-err"), " MongoDB hors ligne"
+            ], className="conn-badge conn-err")
 
-        loaded_at = state.get("loaded_at")
-        time_str  = (f"Chargé à {datetime.fromtimestamp(loaded_at, tz=PARIS_TZ).strftime('%H:%M')}"
-                     if loaded_at else "")
+        return refresh_label, conn_el, email
 
-        conn_row = html.Div([
-            html.Div([dot, html.Span(text)], className="conn-row"),
-            html.Div(time_str, style={"fontSize":"0.72rem","color":C["text_light"],"marginTop":"2px"}),
-        ])
-
-        meta = ""
-        if data and data.get("qc"):
-            data  = filter_data(data)
-            qc    = data["qc"]
-            now_h = datetime.now(timezone.utc)
-            bt, ed, am = seuils["bt"], seuils["ed"], seuils.get("am","00:01")
-            now   = datetime.now(timezone.utc)
-            _pnow = now.astimezone(PARIS_TZ)
-            _rh, _rm = map(int, am.split(":"))
-            _act_sec = max(1, int((_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()))
-
-            all_t    = data.get("all_trackers", [])
-            all_proj = data.get("projects", [])
-            pd_map   = data.get("project_data", {})
-
-            total_bat_low = sum(1 for t in all_t
-                    if battery_status(t, bt) == "faible"
-                    and 0 <= t.get("_last_seen_seconds", -1) < _act_sec)
-            
-            total_hors    = 0
-            total_inactif = 0
-            for _p in all_proj:
-                _trkrs = pd_map.get(_p.get("id",""), {}).get("trackers", [])
-                _proj_tz = pd_map.get(_p.get("id",""), {}).get("timezone", "UTC")
-                _hs, _mq = check_schedule_anomalies(
-                    _trkrs, _p.get("schedule", {}), now_h, _proj_tz, _act_sec
-                )
-                total_hors    += len(_hs)
-                total_inactif += len(_mq)
-
-            flag_items = []
-            if total_bat_low > 0:
-                flag_items.append(
-                    html.Span(f"🔋 {total_bat_low} batt. faible",
-                              style={"background":C["red"],"color":"#fff","fontSize":"0.68rem",
-                                     "fontWeight":"700","padding":"2px 8px","borderRadius":"20px",
-                                     "marginLeft":"6px"})
-                )
-            if total_hors > 0:
-                flag_items.append(
-                    html.Span(f"🕐 {total_hors} hors schedule",
-                              style={"background":C["orange"],"color":"#fff","fontSize":"0.68rem",
-                                     "fontWeight":"700","padding":"2px 8px","borderRadius":"20px",
-                                     "marginLeft":"6px"})
-                )
-            if total_inactif > 0:
-                flag_items.append(
-                    html.Span(f"⚠ {total_inactif} inactifs",
-                              style={"background":"#B45309","color":"#fff","fontSize":"0.68rem",
-                                     "fontWeight":"700","padding":"2px 8px","borderRadius":"20px",
-                                     "marginLeft":"6px"})
-                )
-
-            meta = html.Div([
-                html.Div([
-                    html.Span(f"{qc.get('projects_loaded',0)}/{qc.get('total_projects',0)} projets chargés"),
-                    *flag_items,
-                ], style={"display":"flex","alignItems":"center","flexWrap":"wrap","gap":"4px"}),
-                html.Div(f"{qc.get('units_total',0)} unités · {qc.get('trackers_total',0)} capteurs"),
-                html.Div(datetime.now().strftime("%d/%m/%Y %H:%M"),
-                         style={"color":C["text_light"]}),
-            ])
-
-        return conn_row, meta, show if loading else hide, load_text
-
+    # ── KPI row ───────────────────────────────────────────────────────────────
     @app.callback(
         Output("kpi-row",     "children"),
         Input("store-ver",    "data"),
         Input("store-seuils", "data"),
-        State("store-creds",  "data"),
     )
-    def update_kpis(ver, seuils, creds):
+    def update_kpis(ver, seuils):
         from config import PAST_DAYS
-        if not creds: return []
-        data = get_cached_data(creds["email"], creds["key"])
+        data = get_cached_data()
         if not data or not data.get("projects"):
-            return [kpi_card("Projets actifs", 0, "En attente de donnees")]
+            return [kpi_card("Projets actifs", 0, "En attente de données")]
         data = filter_data(data)
         if not data.get("projects"):
-            return [kpi_card("Projets actifs", 0, "En attente de donnees")]
+            return [kpi_card("Projets actifs", 0, "En attente de données")]
 
-        bt, ed, am = seuils["bt"], seuils["ed"], seuils.get("am","00:01")
+        bt = (seuils or {}).get("bt", 3.5)
+        ed = (seuils or {}).get("ed", 30)
+        am = (seuils or {}).get("am", "00:01")
         now   = datetime.now(timezone.utc)
         _pnow = now.astimezone(PARIS_TZ)
         _rh, _rm = map(int, am.split(":"))
-        _act_sec = max(1, int((_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()))
-        segs = compute_segments(data["projects"], data["project_data"],
-                                now, _act_sec, ed, PAST_DAYS)
-        all_t   = data["all_trackers"]
-        conn    = [t for t in all_t if t.get("_is_connected",False)]
-        bat_low = [t for t in all_t 
-           if battery_status(t, bt) == "faible"
-           and 0 <= t.get("_last_seen_seconds", -1) < _act_sec]
-        pct     = round(len(conn)/len(all_t)*100) if all_t else 0
+        _act_sec = max(1, int(
+            (_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()
+        ))
+        segs  = compute_segments(data["projects"], data["project_data"], now, _act_sec, ed, PAST_DAYS)
+        all_t = data["all_trackers"]
+        conn    = [t for t in all_t if t.get("_is_connected", False)]
+        bat_low = [t for t in all_t
+                   if battery_status(t, bt) == "faible"
+                   and 0 <= t.get("_last_seen_seconds", -1) < _act_sec]
+        pct = round(len(conn) / len(all_t) * 100) if all_t else 0
 
         return [
-            kpi_card("Projets actifs", len(segs["active"]),
-                     f"Signal depuis {am} - {len(segs['total'])} dans le parc",
+            kpi_card("Projets actifs",    len(segs["active"]),
+                     f"Signal depuis {am} — {len(segs['total'])} dans le parc",
                      C["green"] if segs["active"] else C["text_muted"], "projets"),
-            kpi_card("Fin imminente", len(segs["ending"]),
+            kpi_card("Fin imminente",     len(segs["ending"]),
                      f"Dans les {int(ed)} prochains jours",
                      C["orange"] if segs["ending"] else None, "urgences"),
-            kpi_card("Projets termines", len(segs["past"]),
+            kpi_card("Projets terminés",  len(segs["past"]),
                      "endDate dépassée, non archivés",
                      C["orange"] if segs["past"] else None, "projets"),
-            kpi_card("Capteurs connectes", len(conn),
-                     f"{pct}% du parc - {len(all_t)} total",
+            kpi_card("Dispositifs connectés", len(conn),
+                     f"{pct}% du parc — {len(all_t)} total",
                      C["green"] if pct >= 80 else C["orange"] if pct >= 50 else C["red"], "capteurs"),
-            kpi_card("Batterie faible", len(bat_low),
+            kpi_card("Batterie faible",   len(bat_low),
                      f"Seuil < {bt}V",
                      C["orange"] if bat_low else None, "urgences"),
         ]

@@ -24,7 +24,7 @@ def register(app):
     )
     def show_modal(pid, filtre_proj, filtre_type, seuils, creds):
         if not pid or not creds: return html.Div()
-        data = get_cached_data(creds["email"], creds["key"])
+        data = get_cached_data(creds.get("email"), creds.get("key", ""))
         if not data: return html.Div()
 
         if not seuils:
@@ -139,7 +139,7 @@ def register(app):
             return html.Div()
         if not creds:
             return dash.no_update
-        data = get_cached_data(creds["email"], creds["key"])
+        data = get_cached_data(creds.get("email"), creds.get("key", ""))
         if not data: return dash.no_update
 
         tracker = next(
@@ -274,7 +274,7 @@ def register(app):
     def show_modal_archives(open_flag, creds):
         if not open_flag or not creds:
             return html.Div()
-        data = get_cached_data(creds["email"], creds["key"])
+        data = get_cached_data(creds.get("email"), creds.get("key", ""))
         if not data: return html.Div()
 
         archived = [p for p in data["projects"] if p.get("archived")]

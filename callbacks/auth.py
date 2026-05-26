@@ -1,21 +1,43 @@
 from __future__ import annotations
+import logging
+
 from dash import Output, Input
 
-from config import BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS
+import config
 from cache import register_creds
+from config import BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS
+
+log = logging.getLogger(__name__)
 
 
 def register(app):
 
     @app.callback(
         Output("store-creds", "data"),
-        Input("input-email", "value"),
-        Input("input-key",   "value"),
+        Input("url", "pathname"),
     )
-    def save_creds(email, key):
-        if email and key:
-            register_creds(email, key)
-            return {"email": email, "key": key}
+    def load_creds(pathname):
+        """Populate store-creds from SSO session on every page navigation.
+
+        In dev bypass mode (double condition), returns a synthetic dev credential.
+        """
+        bypass = config.UNIFIELD_DEV_AUTH_BYPASS and config.APP_ENV != "production"
+        if bypass:
+            register_creds()
+            return {"email": "dev@cad42.local", "role": "admin"}
+
+        try:
+            from flask import request as flask_request
+            from auth.session_cookie import get_cookie
+            from auth.session_store import get_session
+            sid     = get_cookie(flask_request)
+            session = get_session(sid) if sid else None
+            if session:
+                register_creds()
+                return {"email": session["email"], "role": session["role"]}
+        except Exception as exc:
+            log.warning('{"event": "load_creds_error", "detail": "%s"}', str(exc)[:200])
+
         return None
 
     @app.callback(
@@ -23,6 +45,7 @@ def register(app):
         Input("seuil-battery",  "value"),
         Input("seuil-ending",   "value"),
         Input("seuil-activity", "value"),
+        prevent_initial_call=True,
     )
     def save_seuils(batt, ending, activity):
         return {

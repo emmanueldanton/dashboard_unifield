@@ -1,71 +1,147 @@
 from __future__ import annotations
-import hashlib
+import logging
 import threading
 import time
 
-from api.loader import load_all_data
+import config
 
-_shared_cache = {}
+log = logging.getLogger(__name__)
+
+# Singleton key — md5(email:key) scheme removed (D-004).
+# Signatures keep (email, key) args for backwards-compatibility with existing callbacks.
+_CACHE_KEY = "unifield_singleton"
+
+_shared_cache: dict = {}
 _cache_lock   = threading.RLock()
 
+# MongoDB status exposed to the header (graceful degradation D-012)
+_mongo_ok      = True
+_last_success  = None
 
-def _cache_key(email, key):
-    return hashlib.md5(f"{email}:{key}".encode()).hexdigest()
+
+def _get_loader():
+    """Return the active load_all_data function based on UNIFIELD_SOURCE."""
+    if config.UNIFIELD_SOURCE == "rest":
+        from api.loader import load_all_data
+        return load_all_data
+    from api.mongo_loader import load_all_data
+    return load_all_data
 
 
-def _state(email, key):
+def _state(_email=None, _key=None):  # noqa: ARG001
     with _cache_lock:
-        return dict(_shared_cache.get(_cache_key(email, key), {}))
+        return dict(_shared_cache.get(_CACHE_KEY, {}))
 
 
-def get_cached_data(email, key):
-    return _state(email, key).get("data")
+def get_cached_data(_email=None, _key=None):  # noqa: ARG001
+    return _state().get("data")
 
 
-def get_cache_version(email, key):
-    return int(_state(email, key).get("cache_version", 0))
+def get_cache_version(_email=None, _key=None):  # noqa: ARG001
+    return int(_state().get("cache_version", 0))
 
 
-def cache_age(email, key):
-    t = _state(email, key).get("loaded_at")
+def cache_age(_email=None, _key=None):  # noqa: ARG001
+    t = _state().get("loaded_at")
     return (time.time() - t) if t else None
 
 
-def register_creds(email, key):
-    k = _cache_key(email, key)
+def is_mongo_ok() -> bool:
+    return _mongo_ok
+
+
+def last_success_ts() -> float | None:
+    return _last_success
+
+
+def register_creds(_email=None, _key=None):  # noqa: ARG001
     with _cache_lock:
-        if k not in _shared_cache:
-            _shared_cache[k] = {"data":None,"loading":False,"error":None,
-                                "loaded_at":None,"cache_version":0}
+        if _CACHE_KEY not in _shared_cache:
+            _shared_cache[_CACHE_KEY] = {
+                "data": None, "loading": False, "error": None,
+                "loaded_at": None, "cache_version": 0,
+            }
 
 
-def force_refresh(email, key):
-    register_creds(email, key)
-    if not _state(email, key).get("loading"):
-        threading.Thread(target=_do_refresh, args=(email, key), daemon=True).start()
+def force_refresh(_email=None, _key=None):  # noqa: ARG001
+    register_creds()
+    if not _state().get("loading"):
+        threading.Thread(target=_do_refresh, daemon=True).start()
 
 
-def invalidate(email, key):
+def invalidate(_email=None, _key=None):  # noqa: ARG001
     with _cache_lock:
-        _shared_cache.pop(_cache_key(email, key), None)
+        _shared_cache.pop(_CACHE_KEY, None)
 
 
-def _do_refresh(email, key):
-    k = _cache_key(email, key)
-    with _cache_lock:
-        if _shared_cache.get(k, {}).get("loading"): return
-        _shared_cache[k]["loading"] = True
-        _shared_cache[k]["error"]   = None
+def _save_snapshot(data: dict) -> None:
+    """Write an aggregate snapshot document to MongoDB (one per project + one global).
+
+    Errors are silently logged — a snapshot failure must never crash the refresh.
+    """
+    if config.UNIFIELD_SOURCE == "rest":
+        return
     try:
-        data = load_all_data(email, key)
+        from api.mongo_client import get_db
+        from datetime import datetime, timezone
+        db  = get_db()
+        now = datetime.now(timezone.utc)
+        col = db["snapshots"]
+
+        project_data = data.get("project_data", {})
+        for pid, pinfo in project_data.items():
+            trackers = pinfo.get("trackers", [])
+            if not trackers:
+                continue
+            connected    = sum(1 for t in trackers if t.get("_is_connected"))
+            disconnected = len(trackers) - connected
+            battery_low  = sum(1 for t in trackers if t.get("_battery_status") == "faible")
+            col.insert_one({
+                "project_id":   pid,
+                "ts":           now,
+                "connected":    connected,
+                "disconnected": disconnected,
+                "battery_low":  battery_low,
+            })
+    except Exception as exc:
+        log.warning('{"event": "snapshot_failed", "detail": "%s"}', str(exc)[:120])
+
+
+def _do_refresh(_email=None, _key=None):  # noqa: ARG001
+    global _mongo_ok, _last_success
+    with _cache_lock:
+        if _shared_cache.get(_CACHE_KEY, {}).get("loading"):
+            return
+        _shared_cache.setdefault(_CACHE_KEY, {
+            "data": None, "loading": False, "error": None,
+            "loaded_at": None, "cache_version": 0,
+        })
+        _shared_cache[_CACHE_KEY]["loading"] = True
+        _shared_cache[_CACHE_KEY]["error"]   = None
+    try:
+        loader = _get_loader()
+        if config.UNIFIELD_SOURCE == "rest":
+            data = loader(None, None)
+        else:
+            data = loader()
+
         with _cache_lock:
-            _shared_cache[k]["data"]          = data
-            _shared_cache[k]["loaded_at"]     = time.time()
-            _shared_cache[k]["error"]         = None
-            _shared_cache[k]["cache_version"] = int(_shared_cache[k].get("cache_version",0)) + 1
-    except Exception as e:
+            _shared_cache[_CACHE_KEY]["data"]          = data
+            _shared_cache[_CACHE_KEY]["loaded_at"]     = time.time()
+            _shared_cache[_CACHE_KEY]["error"]         = None
+            _shared_cache[_CACHE_KEY]["cache_version"] = (
+                int(_shared_cache[_CACHE_KEY].get("cache_version", 0)) + 1
+            )
+        _mongo_ok     = True
+        _last_success = time.time()
+        _save_snapshot(data)
+
+    except Exception as exc:
+        log.error('{"event": "mongo_refresh_failed", "detail": "%s"}', str(exc)[:200])
+        _mongo_ok = False
         with _cache_lock:
-            _shared_cache[k]["error"] = str(e)
+            _shared_cache[_CACHE_KEY]["error"] = str(exc)
+            # Cache is NOT cleared — graceful degradation (D-012)
     finally:
         with _cache_lock:
-            _shared_cache[k]["loading"] = False
+            _shared_cache[_CACHE_KEY]["loading"] = False

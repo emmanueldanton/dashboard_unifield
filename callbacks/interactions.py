@@ -146,17 +146,6 @@ def register(app):
                 return rows[selected[0]].get("_id")
         return dash.no_update
 
-    @app.callback(
-        Output("store-capteur-selec", "data", allow_duplicate=True),
-        Input("table-capteurs", "selected_rows"),
-        State("store-capteur-rows", "data"),
-        prevent_initial_call=True,
-    )
-    def select_capteur_tab(selected, rows):
-        if selected and rows and selected[0] < len(rows):
-            return rows[selected[0]].get("_id")
-        return dash.no_update
-
     # ── Flag badge click ──────────────────────────────────────
 
     @app.callback(
@@ -172,4 +161,4 @@ def register(app):
         if not triggered:
             return dash.no_update, dash.no_update
         anchor = triggered.get("anchor")
-        return anchor, "urgences"
+        return anchor, "dashboard"
