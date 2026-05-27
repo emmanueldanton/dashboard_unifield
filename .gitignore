@@ -39,3 +39,10 @@ logs/
 
 # Dash / Plotly cache
 .cache/
+
+# Spec Kit / Claude Code — tooling only
+.claude/
+.specify/
+specs/
+CLAUDE.md
+diag.py
