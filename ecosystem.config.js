@@ -8,7 +8,6 @@ module.exports = {
       interpreter: "none",
       env: {
         APP_ENV: "production",
-        UNIFIELD_SOURCE: "mongo",
       },
       out_file: "logs/dashboard.out.log",
       error_file: "logs/dashboard.err.log",
@@ -22,7 +21,6 @@ module.exports = {
       cwd: "/opt/smsi/unifield",
       env: {
         APP_ENV: "production",
-        UNIFIELD_SOURCE: "mongo",
       },
       out_file: "logs/alerter.out.log",
       error_file: "logs/alerter.err.log",

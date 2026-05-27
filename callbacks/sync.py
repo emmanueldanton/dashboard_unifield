@@ -22,11 +22,12 @@ def register(app):
         Output("store-loading", "data"),
         Input("btn-refresh",    "n_clicks"),
         Input("interval-15min", "n_intervals"),
+        Input("interval-ui",    "n_intervals"),
         Input("store-creds",    "data"),
         State("store-ver",      "data"),
         prevent_initial_call=False,
     )
-    def sync_ver(nrefresh, n15, creds, cur):
+    def sync_ver(nrefresh, n15, n_ui, creds, cur):
         triggered = ctx.triggered_id
 
         if triggered == "store-creds":
@@ -48,6 +49,15 @@ def register(app):
             force_refresh()
             email = (creds or {}).get("email", "")
             return {"v": 0, "email": email}, True
+
+        if triggered == "interval-ui":
+            state = _state()
+            loading = state.get("loading", False)
+            v = get_cache_version()
+            email = (creds or {}).get("email", "")
+            if not loading:
+                return {"v": v, "email": email}, False
+            return dash.no_update, True
 
         email = (creds or {}).get("email", "")
         state = _state()

@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── REST fallback (conserved for UNIFIELD_SOURCE=rest) ────────────────────────
-API_BASE = "https://api.cad42.com"
-
 # ── MongoDB ───────────────────────────────────────────────────────────────────
 UNIFIELD_MONGO_URI = os.environ.get("UNIFIELD_MONGO_URI", "")
 UNIFIELD_MONGO_DB  = os.environ.get("UNIFIELD_MONGO_DB", "unifield")
@@ -16,9 +13,6 @@ UNIFIELD_MONGO_DB  = os.environ.get("UNIFIELD_MONGO_DB", "unifield")
 BASE_PATH  = os.environ.get("BASE_PATH", "/unifield/")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:8050")
 APP_ENV    = os.environ.get("APP_ENV", "production")
-
-# ── Source de données : "mongo" (défaut) ou "rest" (fallback dev) ─────────────
-UNIFIELD_SOURCE = os.environ.get("UNIFIELD_SOURCE", "mongo")
 
 # ── Auth bypass (dev uniquement) ──────────────────────────────────────────────
 UNIFIELD_DEV_AUTH_BYPASS = os.environ.get("UNIFIELD_DEV_AUTH_BYPASS", "false").lower() == "true"

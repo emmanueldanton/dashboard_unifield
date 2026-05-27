@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
-from api.loader import load_all_data
+from api.mongo_loader import load_all_data
 from business.alerts import detect_alerts, diff_alerts
 from notifications.email import send_alert, build_alert_html
 
@@ -13,9 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-UNIFIELD_EMAIL = os.getenv("UNIFIELD_EMAIL", "")
-UNIFIELD_KEY   = os.getenv("UNIFIELD_KEY", "")
-INTERVAL_MIN   = int(os.getenv("ALERT_INTERVAL_MINUTES", "10"))
+INTERVAL_MIN = int(os.getenv("ALERT_INTERVAL_MINUTES", "10"))
 
 _previous_alert_ids: set[str] = set()
 
@@ -51,7 +49,7 @@ def check_and_alert():
     logger.info("Démarrage du cycle de vérification...")
 
     try:
-        data = load_all_data(UNIFIELD_EMAIL, UNIFIELD_KEY)
+        data = load_all_data()
     except Exception as e:
         logger.error('{"event": "alerter_load_failed", "detail": "%s"}', str(e)[:200])
         return

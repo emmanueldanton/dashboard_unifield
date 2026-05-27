@@ -3,29 +3,17 @@ import logging
 import threading
 import time
 
-import config
+from api.mongo_loader import load_all_data as _load_all_data
 
 log = logging.getLogger(__name__)
 
-# Singleton key — md5(email:key) scheme removed (D-004).
-# Signatures keep (email, key) args for backwards-compatibility with existing callbacks.
 _CACHE_KEY = "unifield_singleton"
 
 _shared_cache: dict = {}
 _cache_lock   = threading.RLock()
 
-# MongoDB status exposed to the header (graceful degradation D-012)
 _mongo_ok      = True
 _last_success  = None
-
-
-def _get_loader():
-    """Return the active load_all_data function based on UNIFIELD_SOURCE."""
-    if config.UNIFIELD_SOURCE == "rest":
-        from api.loader import load_all_data
-        return load_all_data
-    from api.mongo_loader import load_all_data
-    return load_all_data
 
 
 def _state(_email=None, _key=None):  # noqa: ARG001
@@ -79,8 +67,6 @@ def _save_snapshot(data: dict) -> None:
 
     Errors are silently logged — a snapshot failure must never crash the refresh.
     """
-    if config.UNIFIELD_SOURCE == "rest":
-        return
     try:
         from api.mongo_client import get_db
         from datetime import datetime, timezone
@@ -119,11 +105,7 @@ def _do_refresh(_email=None, _key=None):  # noqa: ARG001
         _shared_cache[_CACHE_KEY]["loading"] = True
         _shared_cache[_CACHE_KEY]["error"]   = None
     try:
-        loader = _get_loader()
-        if config.UNIFIELD_SOURCE == "rest":
-            data = loader(None, None)
-        else:
-            data = loader()
+        data = _load_all_data()
 
         with _cache_lock:
             _shared_cache[_CACHE_KEY]["data"]          = data
@@ -141,7 +123,6 @@ def _do_refresh(_email=None, _key=None):  # noqa: ARG001
         _mongo_ok = False
         with _cache_lock:
             _shared_cache[_CACHE_KEY]["error"] = str(exc)
-            # Cache is NOT cleared — graceful degradation (D-012)
     finally:
         with _cache_lock:
             _shared_cache[_CACHE_KEY]["loading"] = False

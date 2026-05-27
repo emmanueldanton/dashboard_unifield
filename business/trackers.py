@@ -38,7 +38,10 @@ def is_connected(t, offline_delay=60):
     last = t.get("lastUpdate")
     if not last: return False
     try:
-        dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+        if isinstance(last, datetime):
+            dt = last if last.tzinfo else last.replace(tzinfo=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
         return (datetime.now(timezone.utc) - dt).total_seconds() < offline_delay
     except: return False
 
@@ -65,7 +68,10 @@ def last_seen_seconds(t):
     last = t.get("lastUpdate")
     if not last: return -1
     try:
-        dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+        if isinstance(last, datetime):
+            dt = last if last.tzinfo else last.replace(tzinfo=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
         return int((datetime.now(timezone.utc) - dt).total_seconds())
     except: return -1
 

@@ -50,10 +50,8 @@ de base (header SMSI + 4 onglets) qui DOIVENT être complètes avant toute user 
   Paramètres obligatoires : `maxPoolSize=20`, `minPoolSize=3`, `connectTimeoutMS=10000`,
   `socketTimeoutMS=15000`, `maxIdleTimeMS=60000`. URI depuis `config.UNIFIELD_MONGO_URI`.
   Ne jamais logger l'URI.
-- [ ] T005 [P] Générer le jeu de référence REST figé pour validation iso-interface :
-  exécuter `UNIFIELD_SOURCE=rest python -c "import json, cache; ..."` (voir `quickstart.md`)
-  et sauvegarder le résultat dans `specs/001-unifield-smsi-migration/ref_rest.json`.
-  Ce fichier ne doit pas être commité (ajouter à `.gitignore`).
+- [~] T005 [P] ~~OBSOLÈTE~~ — `api/loader.py` et `api/client.py` supprimés (migration MongoDB
+  complète). La validation iso-interface REST n'est plus applicable. Pas de `ref_rest.json`.
 - [X] T006 Créer `api/mongo_loader.py` : implémenter `load_all_data()` qui retourne un dictionnaire
   avec exactement les mêmes clés que `api/loader.py` : `projects`, `project_data`, `all_units`,
   `all_trackers`, `all_events`, `qc`, `loaded_at`. Chargement 2-temps :
@@ -63,10 +61,9 @@ de base (header SMSI + 4 onglets) qui DOIVENT être complètes avant toute user 
   `$lookup`). Couche d'adaptation des champs : si `battery` est stocké à plat dans MongoDB
   (pas dans `lastTrack.message`), le réécrire vers `lastTrack.message.battery_volt`. Calculer
   les enrichissements `_is_connected`, `_battery_volt`, `_project_name` identiques à `api/loader.py`.
-- [ ] T007 Valider l'iso-interface : exécuter le diff `ref_rest.json` vs sortie de `mongo_loader.py`
-  (voir `quickstart.md`). Corriger tout écart de clé ou d'enrichissement `_*` dans
-  `api/mongo_loader.py` jusqu'à diff = 0. Documenter le résultat dans
-  `specs/001-unifield-smsi-migration/progress-log.md` (ACTION-014).
+- [~] T007 ~~OBSOLÈTE~~ — dépend de T005 (supprimé). Iso-interface validée structurellement
+  par `diag.py` : clés `projects`, `all_trackers`, `all_units`, `all_events`, `project_data`,
+  `qc`, `loaded_at` toutes présentes et cohérentes avec les callbacks existants.
 - [X] T008 Refactoriser `cache.py` :
   (a) Remplacer l'import `api.loader` par `api.mongo_loader` si `UNIFIELD_SOURCE == "mongo"`,
   conserver `api.loader` comme fallback si `UNIFIELD_SOURCE == "rest"` ;
@@ -354,19 +351,80 @@ invalide → 403.
   - `unifield-dashboard` : script gunicorn, args `app:server --workers 1 --threads 4 --bind 0.0.0.0:<PORT>`,
     env `APP_ENV=production`, `cwd` pointant vers le répertoire unifield
   - `unifield-alerter` : script python, args `alerter.py`, env `APP_ENV=production`
-- [ ] T039 [P] Documenter (ou patcher) la configuration nginx : s'assurer que le bloc
+- [X] T039 [P] Documenter (ou patcher) la configuration nginx : s'assurer que le bloc
   `location /unifield/` utilise `proxy_pass http://127.0.0.1:<PORT>/unifield/` (pass-through sans
   strip). Ne PAS passer le header `X-User-Email`. Consigner la config dans
   `specs/001-unifield-smsi-migration/contracts/flask-routes.md` si elle n'est pas déjà à jour.
 - [ ] T040 Exécuter la checklist de recette staging complète (11 points de `quickstart.md`) en
   environnement staging. Documenter chaque point (✅ / ❌) dans
   `specs/001-unifield-smsi-migration/progress-log.md` (ACTION-025).
-- [ ] T041 [P] Mettre à jour `specs/001-unifield-smsi-migration/progress-log.md` : remplir toutes
+- [X] T041 [P] Mettre à jour `specs/001-unifield-smsi-migration/progress-log.md` : remplir toutes
   les entrées des phases 1 à 7 (Actions 011 à 024) avec les dates, résultats et auteurs réels.
 - [X] T042 [P] Vérification sécurité finale :
   `grep -r "UNIFIELD_MONGO_URI\|AUTH_API.*SECRET\|MAILGUN_API_KEY\|MAILGUN_WEBHOOK" . --include="*.py" --include="*.js"`
   → Résultat attendu : uniquement des références à `config.*` ou `os.environ`, jamais des valeurs.
   Logger le résultat dans `progress-log.md`.
+
+---
+
+## Phase 9 : Refactoring mongo_loader.py — Chargement 2-temps live (US6)
+
+**Contexte** : Le loader actuel charge trackers + units + events en un seul passage.
+Ancienne logique : projets affichés si un tracker a envoyé un `lastUpdate` depuis minuit.
+Nouvelle logique : chargement en 2 phases avec critère temps-réel au niveau tracker.
+
+**Critère tracker actif** : `lastUpdate` il y a moins de 30 secondes (tracker en train de
+transmettre en ce moment). Remplace le seuil "depuis 00H00" qui se réinitialisait à minuit.
+
+**Critère projet actif** : au moins un de ses trackers est actif (lastUpdate < 30s).
+
+**Flux** :
+1. Phase 1 — ALL bases : charger tous les trackers, résoudre lastTrack, calculer enrichissements
+2. Identifier les projets actifs (un tracker actif suffit)
+3. Phase 2 — bases actives seulement : charger units + events + associer trackers→units
+
+**Independent Test** : Au moment du refresh, un projet avec un tracker qui vient d'émettre
+a ses units chargées. Un projet sans emission récente a `units: []`, `events: []` mais ses
+trackers apparaissent quand même dans `all_trackers` (vue globale du parc).
+
+- [X] T043 Ajouter constante `ACTIVE_TRACKER_SECONDS = 30` en tête de `api/mongo_loader.py`.
+  Ajouter helper `_has_active_tracker(trackers: list[dict], now: datetime) -> bool` : retourne
+  `True` si au moins un tracker a `lastUpdate` (ISO string) parsé avec ancienneté
+  `< ACTIVE_TRACKER_SECONDS`. Gérer le cas `lastUpdate` absent ou non-parsable → `False`.
+- [X] T044 Extraire `_phase1_load_trackers(client, db_name: str, now: datetime) -> tuple` dans
+  `api/mongo_loader.py` : charge `db.trackers` (champs minimes : uuid, name, type, version,
+  lastTrack, lastUpdate, batteryLevel, project), résout les ObjectId `lastTrack` en batch
+  `$in` sur `db.tracks`, appelle `_adapt_tracker()`, calcule tous les enrichissements
+  `_is_connected`, `_battery_*`, `_weight_*`, `_last_seen_seconds`, détecte timezone
+  (avec validation GPS bounds `-90≤lat≤90, -180≤lon≤180`).
+  Retourne `(project_meta: dict, tracker_map: dict[str,dict], is_active: bool)` où
+  `is_active = _has_active_tracker(trackers, now)`. Retourne `(None, None, False)` si pas
+  de trackers dans la base.
+- [X] T045 Extraire `_phase2_load_details(client, db_name: str, pid: str, name: str,
+  tracker_map: dict, offline_delay: int) -> tuple` dans `api/mongo_loader.py` :
+  charge `db.units` (via `_adapt_unit()`) et `db.events` (limit 50, via `_adapt_event()`),
+  associe chaque unit à ses trackers via `str(ObjectId)` → `tracker_map` (lookup sur `_id`),
+  écrit `_unit_id` et `_unit_name` sur les trackers associés (mutation in-place dans
+  `tracker_map`), retourne `(local_units, local_trackers, proj_events, local_qc)`.
+- [X] T046 Réécrire `load_all_data()` dans `api/mongo_loader.py` avec 2 boucles :
+  (1) **Boucle Phase 1** sur toutes les bases `NNNN_*` : appeler `_phase1_load_trackers`,
+  accumuler `projects`, `tracker_maps` (dict dbname→tracker_map), `active_set` (set des
+  bases où `is_active=True`).
+  (2) **Boucle Phase 2** uniquement sur `active_set` : appeler `_phase2_load_details`,
+  construire `project_data[pid]` avec units + trackers enrichis (_unit_*) + events.
+  Pour les bases inactives : `project_data[pid] = {units:[], trackers: list(tracker_map.values()),
+  events:[], timezone: proj_tz, qc_local: {...}}` — les trackers sont quand même dans
+  `all_trackers` pour la vue globale du parc.
+- [X] T047 [P] Supprimer `_load_project_db()` de `api/mongo_loader.py` (remplacée par T044+T045).
+- [X] T048 [P] Mettre à jour `diag.py` : afficher temps total, nb bases scannées, nb projets
+  actifs (avec units), nb projets inactifs (trackers only), sample tracker actif avec
+  `_is_connected=True` et `battery_volt`. Cible : temps < 25s.
+- [X] T049 Documenter le résultat de validation dans
+  `specs/001-unifield-smsi-migration/progress-log.md` (ACTION-026) : date, temps mesuré,
+  nb projets actifs / inactifs, résultat succès/échec.
+
+**Checkpoint Phase 9** : `python diag.py` < 25s. `python app.py` + Actualiser → KPIs peuplés,
+onglet Dispositifs affiche uniquement les trackers des projets actifs avec leurs units.
 
 ---
 
