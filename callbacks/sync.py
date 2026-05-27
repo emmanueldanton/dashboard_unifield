@@ -8,6 +8,8 @@ from config import C, PARIS_TZ
 from cache import (register_creds, force_refresh, invalidate,
                    get_cache_version, get_cached_data, _state,
                    is_mongo_ok, last_success_ts)
+from auth.session_store import cleanup_expired as _cleanup_sessions
+from auth.routes import cleanup_pending_states as _cleanup_pending
 from business.trackers import battery_status, filter_data
 from business.schedule import check_schedule_anomalies
 from business.segments import compute_segments
@@ -47,6 +49,8 @@ def register(app):
         if triggered == "interval-15min":
             register_creds()
             force_refresh()
+            _cleanup_sessions()
+            _cleanup_pending()
             email = (creds or {}).get("email", "")
             return {"v": 0, "email": email}, True
 

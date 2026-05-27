@@ -95,7 +95,7 @@ def register(app):
         Output("snap-graph", "figure"),
         Input("snap-project", "value"),
         Input("snap-range",   "value"),
-        prevent_initial_call=True,
+        prevent_initial_call=False,
     )
     def update_snap_graph(project_id, range_val):
         range_hours = {"6h": 6, "24h": 24, "7j": 168}.get(range_val or "24h", 24)

@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 import secrets
+import time
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, redirect, request, Response
@@ -17,13 +18,23 @@ log = logging.getLogger(__name__)
 
 bp = Blueprint("auth", __name__, url_prefix="/unifield/auth")
 
-_pending_states: dict[str, str] = {}
+_pending_states: dict[str, float] = {}   # state_token -> created_at (epoch)
+_STATE_TTL = 600                          # 10 min — un flow OAuth non complété expire
+
+
+def cleanup_pending_states() -> None:
+    """Purge les tokens OAuth dont le TTL est dépassé."""
+    now     = time.time()
+    expired = [s for s, ts in _pending_states.items() if now - ts > _STATE_TTL]
+    for s in expired:
+        _pending_states.pop(s, None)
 
 
 @bp.route("/login")
 def login():
+    cleanup_pending_states()              # lazy cleanup avant chaque nouveau login
     state = secrets.token_urlsafe(16)
-    _pending_states[state] = "pending"
+    _pending_states[state] = time.time()
     try:
         url = build_auth_url(state)
     except Exception as exc:
@@ -39,6 +50,9 @@ def complete():
 
     if not code or not state or state not in _pending_states:
         return Response("État invalide", status=400)
+    if time.time() - _pending_states[state] > _STATE_TTL:
+        _pending_states.pop(state, None)
+        return Response("État expiré — relancer la connexion", status=400)
     _pending_states.pop(state, None)
 
     try:
