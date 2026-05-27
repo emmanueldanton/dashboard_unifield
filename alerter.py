@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 INTERVAL_MIN = int(os.getenv("ALERT_INTERVAL_MINUTES", "10"))
 
 _previous_alert_ids: set[str] = set()
+_previous_alert_map: dict[str, dict] = {}
 
 
 def _write_alert_history(subject: str, issues_count: int, recipients: list[str],
@@ -45,7 +46,7 @@ def _get_recipients() -> list[str]:
 
 
 def check_and_alert():
-    global _previous_alert_ids
+    global _previous_alert_ids, _previous_alert_map
     logger.info("Démarrage du cycle de vérification...")
 
     try:
@@ -62,7 +63,11 @@ def check_and_alert():
 
     if new_issues or resolved_ids:
         resolved_details = [
-            {"type": "Résolu", "project": rid, "detail": ""}
+            {
+                "type":    "Résolu",
+                "project": _previous_alert_map.get(rid, {}).get("project", rid),
+                "detail":  _previous_alert_map.get(rid, {}).get("detail", ""),
+            }
             for rid in resolved_ids
         ]
 
@@ -89,6 +94,7 @@ def check_and_alert():
         logger.info("Aucun changement détecté — aucun mail envoyé")
 
     _previous_alert_ids = {a["id"] for a in current_alerts}
+    _previous_alert_map = {a["id"]: a for a in current_alerts}
 
 
 if __name__ == "__main__":
