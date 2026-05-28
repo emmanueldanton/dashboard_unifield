@@ -37,6 +37,9 @@ logs/
 # Docker
 .dockerignore
 
+# Node.js
+node_modules/
+
 # Dash / Plotly cache
 .cache/
 

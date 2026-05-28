@@ -68,7 +68,7 @@ def complete():
         return Response("État invalide", status=400)
     if time.time() - _pending_states[state] > _STATE_TTL:
         _pending_states.pop(state, None)
-        return Response("État expiré — relancer la connexion", status=400)
+        return Response("État expiré - relancer la connexion", status=400)
     _pending_states.pop(state, None)
 
     try:
@@ -86,7 +86,7 @@ def complete():
         email = user_info.get("email", "?")
         log.warning('{"event": "login_denied", "email": "%s", "reason": "no_role"}', email)
         return Response(
-            "<html><body><h2>Accès refusé — aucun rôle UNIFIELD</h2>"
+            "<html><body><h2>Accès refusé - aucun rôle UNIFIELD</h2>"
             "<p>Votre compte ne dispose d'aucun rôle UNIFIELD valide.</p></body></html>",
             status=403,
             mimetype="text/html",
