@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, redirect, request, Response
 
-from auth.microsoft_flow import build_auth_url, exchange_code
+from auth.microsoft_flow import build_auth_url, exchange_code, fetch_user_profile, revoke_token
 from auth.role_check import check_role, NoUnifieldRoleError
 from auth.session_cookie import get_cookie, set_cookie
 from auth.session_store import create_session, delete_session, get_session
@@ -45,10 +45,10 @@ def login():
 
 @bp.route("/complete")
 def complete():
-    code  = request.args.get("code", "")
-    state = request.args.get("state", "")
+    auth_code = request.args.get("auth_code", "")
+    state     = request.args.get("state", "")
 
-    if not code or not state or state not in _pending_states:
+    if not auth_code or not state or state not in _pending_states:
         return Response("État invalide", status=400)
     if time.time() - _pending_states[state] > _STATE_TTL:
         _pending_states.pop(state, None)
@@ -56,10 +56,13 @@ def complete():
     _pending_states.pop(state, None)
 
     try:
-        user_info = exchange_code(code, state)
+        token_data = exchange_code(auth_code)
     except Exception as exc:
         log.error('{"event": "auth_exchange_failed", "detail": "%s"}', str(exc)[:200])
         return Response("Erreur auth-api", status=502)
+
+    access_token = token_data.get("accessToken", "")
+    user_info    = fetch_user_profile(access_token) or token_data.get("user") or {}
 
     try:
         role = check_role(user_info)
@@ -74,7 +77,7 @@ def complete():
         )
 
     email = user_info.get("email", "")
-    sid   = create_session(email, role)
+    sid   = create_session(email, role, access_token=access_token)
     log.info('{"event": "login", "user": "%s", "role": "%s"}', email, role)
     resp = redirect(config.BASE_PATH, code=302)
     set_cookie(resp, sid)
@@ -85,6 +88,9 @@ def complete():
 def logout():
     sid = get_cookie(request)
     if sid:
+        session = get_session(sid)
+        if session and session.get("access_token"):
+            revoke_token(session["access_token"])
         delete_session(sid)
     log.info('{"event": "logout"}')
     resp = redirect(config.BASE_PATH + "auth/login", code=302)
