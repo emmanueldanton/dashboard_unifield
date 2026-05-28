@@ -85,7 +85,7 @@ def register(app):
             return render_projets(data, bt, ed, PAST_DAYS)
         if tab == "alertes":
             from ui.tabs.alertes import render_alertes
-            return render_alertes(data)
+            return render_alertes()
         from ui.tabs.dashboard import render_dashboard
         return render_dashboard(data, bt, ed, PAST_DAYS)
 
@@ -144,7 +144,19 @@ def register(app):
         )
         return fig
 
-    # ── 5. Filter dispositifs table (T028) ────────────────────────────────────
+    # ── 5. Alert history table (T003) ────────────────────────────────────────
+    @app.callback(
+        Output("alertes-container", "children"),
+        Input("active-tab",       "data"),
+        Input("interval-15min",   "n_intervals"),
+    )
+    def load_alert_table(tab, _n):
+        from ui.tabs.alertes import build_alert_table
+        data = get_cached_data()
+        rows = data.get("alert_history", []) if data else []
+        return build_alert_table(rows)
+
+    # ── 6. Filter dispositifs table (T028) ────────────────────────────────────
     @app.callback(
         Output("table-dispositifs",    "data"),
         Output("table-dispositifs",    "columns"),

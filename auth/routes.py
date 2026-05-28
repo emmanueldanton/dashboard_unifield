@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 import secrets
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -11,7 +12,7 @@ from flask import Blueprint, jsonify, redirect, request, Response
 from auth.microsoft_flow import build_auth_url, exchange_code, fetch_user_profile, revoke_token
 from auth.role_check import check_role, NoUnifieldRoleError
 from auth.session_cookie import get_cookie, set_cookie
-from auth.session_store import create_session, delete_session, get_session
+from auth.session_store import cleanup_expired, create_session, delete_session, get_session
 import config
 
 log = logging.getLogger(__name__)
@@ -19,20 +20,35 @@ log = logging.getLogger(__name__)
 bp = Blueprint("auth", __name__, url_prefix="/unifield/auth")
 
 _pending_states: dict[str, float] = {}   # state_token -> created_at (epoch)
-_STATE_TTL = 600                          # 10 min — un flow OAuth non complété expire
+_STATE_TTL  = 600   # 10 min — un flow OAuth non complété expire
+_MAX_PENDING = 500  # borne haute pour éviter une fuite mémoire
 
 
 def cleanup_pending_states() -> None:
-    """Purge les tokens OAuth dont le TTL est dépassé."""
     now     = time.time()
     expired = [s for s, ts in _pending_states.items() if now - ts > _STATE_TTL]
     for s in expired:
         _pending_states.pop(s, None)
 
 
+def _scheduled_cleanup() -> None:
+    try:
+        cleanup_pending_states()
+        cleanup_expired()
+    except Exception:
+        pass
+    t = threading.Timer(300.0, _scheduled_cleanup)
+    t.daemon = True
+    t.start()
+
+
+_scheduled_cleanup()   # démarre la boucle de nettoyage dès l'import du module
+
+
 @bp.route("/login")
 def login():
-    cleanup_pending_states()              # lazy cleanup avant chaque nouveau login
+    if len(_pending_states) >= _MAX_PENDING:
+        cleanup_pending_states()
     state = secrets.token_urlsafe(16)
     _pending_states[state] = time.time()
     try:

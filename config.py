@@ -17,6 +17,9 @@ APP_ENV    = os.environ.get("APP_ENV", "production")
 # ── Auth bypass (dev uniquement) ──────────────────────────────────────────────
 UNIFIELD_DEV_AUTH_BYPASS = os.environ.get("UNIFIELD_DEV_AUTH_BYPASS", "false").lower() == "true"
 
+# ── Shell Node.js (true en prod — Node gère l'auth avant proxy) ───────────────
+NODE_PROXY = os.environ.get("NODE_PROXY", "false").lower() == "true"
+
 # ── Auth SSO ──────────────────────────────────────────────────────────────────
 AUTH_API_BASE_URL               = os.environ.get("AUTH_API_BASE_URL", "")
 AUTH_API_SERVICE_CONSUMER_SECRET = os.environ.get("AUTH_API_SERVICE_CONSUMER_SECRET", "")

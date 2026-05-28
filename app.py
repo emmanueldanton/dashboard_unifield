@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import time as _time
 
 import dash
 from flask import jsonify, redirect, request
@@ -33,7 +34,6 @@ _ASSET_PREFIX  = "/unifield/assets/"
 _DASH_PREFIX   = "/unifield/_dash"
 
 
-@server.before_request
 def check_auth():
     path = request.path
 
@@ -57,6 +57,35 @@ def check_auth():
     return None
 
 
+if not config.NODE_PROXY:
+    server.before_request(check_auth)
+
+
+@server.route("/internal/status")
+def internal_status():
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "forbidden"}), 403
+
+    from cache import is_mongo_ok, last_success_ts
+    from datetime import datetime, timezone
+
+    mongo_ok = is_mongo_ok()
+    ts = last_success_ts()
+    last_refresh = None
+    cache_age_s  = None
+    if ts is not None:
+        last_refresh = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        cache_age_s  = int(_time.time() - ts)
+
+    status = "ok" if (mongo_ok and ts is not None) else "degraded"
+    return jsonify({
+        "status":       status,
+        "mongo_ok":     mongo_ok,
+        "last_refresh": last_refresh,
+        "cache_age_s":  cache_age_s,
+    })
+
+
 app.layout = create_layout()
 register_all_callbacks(app)
 
@@ -72,8 +101,7 @@ if not (config.UNIFIELD_DEV_AUTH_BYPASS and config.APP_ENV != "production"):
 from cache import force_refresh as _startup_refresh
 
 def _preload():
-    import time
-    time.sleep(2)          # laisse Gunicorn finir son init
+    _time.sleep(2)
     log.info('{"event": "startup_preload", "msg": "chargement initial MongoDB"}')
     _startup_refresh()
 
