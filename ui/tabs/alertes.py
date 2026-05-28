@@ -82,6 +82,6 @@ def build_alert_table(rows: list) -> html.Div:
         ) if rows else banner("Aucune alerte enregistrée.", "info")
     )
     return html.Div([
-        section_label(f"Historique alertes — {nb_alerts} entrée(s)"),
+        section_label(f"Historique alertes - {nb_alerts} entrée(s)"),
         table_el,
     ])

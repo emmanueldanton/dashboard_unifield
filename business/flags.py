@@ -20,7 +20,7 @@ def compute_project_flags(p, trkrs, now, bt):
             v = t.get("_battery_volt", -1)
             reasons.append(f"batt. {v:.2f}V")
         if reasons:
-            ko_details.append(f"{t.get('name','?')} — {', '.join(reasons)}")
+            ko_details.append(f"{t.get('name','?')} - {', '.join(reasons)}")
 
     hors_details    = []
     inactif_details = []
@@ -44,13 +44,13 @@ def compute_project_flags(p, trkrs, now, bt):
                 if not connected:
                     duree = age_full(t.get("lastUpdate", ""))
                     inactif_details.append(
-                        f"{name} — absent depuis {duree} (plage {plage_str})"
+                        f"{name} - absent depuis {duree} (plage {plage_str})"
                     )
             else:
                 if connected or (0 <= last_sec < 3600):
                     duree = age_full(t.get("lastUpdate", ""))
                     hors_details.append(
-                        f"{name} — actif depuis {duree} hors plage {plage_str}"
+                        f"{name} - actif depuis {duree} hors plage {plage_str}"
                     )
 
     return {

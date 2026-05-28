@@ -17,7 +17,7 @@ const GUNICORN_URL = process.env.DASH_INTERNAL_URL || 'http://127.0.0.1:8050';
 
 const app = express();
 
-// ── Security headers (CSP off — Dash uses inline scripts) ─────────────────────
+// ── Security headers (CSP off - Dash uses inline scripts) ─────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 
 // ── Access logging ────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ app.use(cors({ origin: corsOrigins }));
 // ── Static assets (maintenance page only) ────────────────────────────────────
 app.use(`${BASE_PATH}/static`, express.static(path.join(__dirname, 'public')));
 
-// ── Cookie helper (manual parse — no cookie-parser dependency) ────────────────
+// ── Cookie helper (manual parse - no cookie-parser dependency) ────────────────
 function getUnifieldSid(req) {
   const cookieHeader = req.headers.cookie || '';
   const pair = cookieHeader.split(';').map(s => s.trim()).find(s => s.startsWith('unifield.sid='));

@@ -5,7 +5,7 @@ from config import C
 from ui.components import section_label, build_tracker_rows
 
 
-# ── Original render_capteurs (unchanged — T026) ───────────────────────────────
+# ── Original render_capteurs (unchanged - T026) ───────────────────────────────
 
 def render_capteurs(data, filtre_conn="Connectés", filtre_batt="Tous", filtre_proj="Tous"):
     all_t   = data["all_trackers"]
@@ -52,7 +52,7 @@ def render_capteurs(data, filtre_conn="Connectés", filtre_batt="Tous", filtre_p
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "16px"}),
 
-        section_label(f"Résultats — {len(filtered)} capteur(s)"),
+        section_label(f"Résultats - {len(filtered)} capteur(s)"),
 
         html.Div(
             dash_table.DataTable(
@@ -156,7 +156,7 @@ def render_dispositifs(data):
         ], style={"display": "flex", "gap": "12px", "marginBottom": "16px"}),
 
         html.Div(id="label-dispositifs",
-                 children=section_label(f"Dispositifs — {len(rows)} connecté(s) / {len(all_t)} au total")),
+                 children=section_label(f"Dispositifs - {len(rows)} connecté(s) / {len(all_t)} au total")),
 
         html.Div(
             dash_table.DataTable(

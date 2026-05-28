@@ -1,4 +1,4 @@
-"""MongoDB loader — iso-interface with api/loader.py.
+"""MongoDB loader - iso-interface with api/loader.py.
 
 Architecture réelle : registre central cad42Users.projects (391 projets) avec
 champ 'database' pointant vers la base per-projet (NNNN_* ou cad42_* ou autre).
@@ -281,7 +281,7 @@ def _phase1_load_trackers(
         t["_project_name"]      = name
         t["_offline_delay"]     = offline_delay
         t["_unit_id"]           = ""
-        t["_unit_name"]         = "—"
+        t["_unit_name"]         = "-"
         t["_project_tz"]        = "UTC"
         t["_is_connected"]      = is_connected(t, offline_delay)
         t["_battery_status"]    = battery_status(t)
@@ -437,7 +437,7 @@ def _phase2_load_details(
 # ── Loader principal ──────────────────────────────────────────────────────────
 
 def load_all_data(_email=None, _key=None) -> dict:
-    """Charge toutes les données depuis MongoDB — pré-phase + 2 phases.
+    """Charge toutes les données depuis MongoDB - pré-phase + 2 phases.
 
     Pré-phase : 1 requête sur cad42Users.projects → registre {database: project_doc}
     Phase 1   : toutes les bases du registre → trackers + métadonnées injectées,
@@ -504,7 +504,7 @@ def load_all_data(_email=None, _key=None) -> dict:
     qc["projects_active"] = active_count
 
     # ── Phase 2 : détails des bases ACTIVES uniquement ────────────────────────
-    # Les bases inactives sont ignorées — seules les données fraîches (actives)
+    # Les bases inactives sont ignorées - seules les données fraîches (actives)
     # reçoivent la résolution units↔trackers et le chargement des events.
     projects:     list[dict] = []
     project_data: dict       = {}

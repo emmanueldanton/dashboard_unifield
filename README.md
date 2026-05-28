@@ -1,4 +1,4 @@
-# UNIFIELD Dashboard — Console SIEM CAD.42
+# UNIFIELD Dashboard - Console SIEM CAD.42
 
 Supervision temps réel des chantiers de mesure de terrain UNIFIELD. 5ᵉ console du portail Z42.
 
@@ -6,10 +6,10 @@ Supervision temps réel des chantiers de mesure de terrain UNIFIELD. 5ᵉ consol
 
 ## Onglets
 
-- **Tableau de bord** — KPIs, urgences, graphe d'évolution des états (snapshots 15 min)
-- **Dispositifs** — table filtrée de tous les trackers/capteurs
-- **Projets** — cartes projet avec score de santé
-- **Gestion des Alertes** — historique Mailgun, statut livraison, seuils
+- **Tableau de bord** - KPIs, urgences, graphe d'évolution des états (snapshots 15 min)
+- **Dispositifs** - table filtrée de tous les trackers/capteurs
+- **Projets** - cartes projet avec score de santé
+- **Gestion des Alertes** - historique Mailgun, statut livraison, seuils
 
 ## Lancer en local
 

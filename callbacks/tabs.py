@@ -114,7 +114,7 @@ def register(app):
         if not docs:
             fig = go.Figure()
             fig.add_annotation(
-                text="Aucune donnée disponible — les données apparaîtront après le premier cycle de refresh",
+                text="Aucune donnée disponible - les données apparaîtront après le premier cycle de refresh",
                 xref="paper", yref="paper", x=0.5, y=0.5,
                 showarrow=False, font={"size": 13, "color": C["text_muted"]},
             )
@@ -170,7 +170,7 @@ def register(app):
     def filter_dispositifs(conn_filter, batt_filter, proj_filter):
         data = get_cached_data()
         if not data:
-            return [], [], [], section_label("Dispositifs — 0 résultat")
+            return [], [], [], section_label("Dispositifs - 0 résultat")
         all_t = data.get("all_trackers", [])
 
         filtered = all_t[:]
@@ -206,11 +206,11 @@ def register(app):
                 parts.append(f"{len(proj_filter)} projets")
 
         if not parts:
-            label_text = f"Dispositifs — {count} au total"
+            label_text = f"Dispositifs - {count} au total"
         elif len(parts) == 1 and not proj_filter:
-            label_text = f"Dispositifs — {count} {parts[0].lower()} / {total} au total"
+            label_text = f"Dispositifs - {count} {parts[0].lower()} / {total} au total"
         else:
-            label_text = f"Dispositifs — {count} résultat(s) · {', '.join(parts)} / {total} au total"
+            label_text = f"Dispositifs - {count} résultat(s) · {', '.join(parts)} / {total} au total"
 
         return rows, cols, rows, section_label(label_text)
 
@@ -243,15 +243,15 @@ def register(app):
                 html.Button("✕", id="btn-close-dispositif", className="modal-close"),
             ], className="modal-header"),
             html.Div([
-                stat("Statut",       row.get("Statut", "—")),
-                stat("Projet",       row.get("Projet", "—")),
-                stat("Unité",        row.get("Unité",  "—")),
-                stat("Dernière activité", row.get("Dernière activité (Heure locale)", "—")),
-                stat("Âge",          row.get("Âge",     "—")),
-                stat("Batt. (V)",    row.get("Batt. (V)", "—")),
-                stat("Poids (kg)",   row.get("Poids (kg)", "—")),
-                stat("GPS",          row.get("GPS",    "—")),
-                stat("Temp.",        row.get("Temp.",  "—")),
+                stat("Statut",       row.get("Statut", "-")),
+                stat("Projet",       row.get("Projet", "-")),
+                stat("Unité",        row.get("Unité",  "-")),
+                stat("Dernière activité", row.get("Dernière activité (Heure locale)", "-")),
+                stat("Âge",          row.get("Âge",     "-")),
+                stat("Batt. (V)",    row.get("Batt. (V)", "-")),
+                stat("Poids (kg)",   row.get("Poids (kg)", "-")),
+                stat("GPS",          row.get("GPS",    "-")),
+                stat("Temp.",        row.get("Temp.",  "-")),
             ], className="modal-summary"),
         ], className="modal-box")
 

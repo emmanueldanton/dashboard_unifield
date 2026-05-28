@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 bp = Blueprint("auth", __name__, url_prefix="/unifield/auth")
 
 _pending_states: dict[str, float] = {}   # state_token -> created_at (epoch)
-_STATE_TTL  = 600   # 10 min — un flow OAuth non complété expire
+_STATE_TTL  = 600   # 10 min - un flow OAuth non complété expire
 _MAX_PENDING = 500  # borne haute pour éviter une fuite mémoire
 
 

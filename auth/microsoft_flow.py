@@ -85,7 +85,7 @@ def exchange_code(code: str) -> dict:
 def fetch_user_profile(access_token: str) -> dict | None:
     """Récupère le profil canonique depuis auth-api (anti-spoofing).
 
-    Retourne None si indisponible — l'appelant doit utiliser token_data["user"] en fallback.
+    Retourne None si indisponible - l'appelant doit utiliser token_data["user"] en fallback.
     """
     try:
         resp = requests.get(

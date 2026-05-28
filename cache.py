@@ -66,7 +66,7 @@ def _load_alert_history() -> list[dict]:
     """Charge les 50 dernières entrées alert_history (lecture seule, snapshot).
 
     Retourne une liste de dicts prêts à afficher dans DataTable.
-    Toute erreur est silencieusement loggée — ne doit jamais bloquer le refresh.
+    Toute erreur est silencieusement loggée - ne doit jamais bloquer le refresh.
     """
     try:
         from api.mongo_client import get_db
@@ -96,7 +96,7 @@ def _load_alert_history() -> list[dict]:
 def _save_snapshot(data: dict) -> None:
     """Write an aggregate snapshot document to MongoDB (one per project + one global).
 
-    Errors are silently logged — a snapshot failure must never crash the refresh.
+    Errors are silently logged - a snapshot failure must never crash the refresh.
     """
     try:
         from api.mongo_client import get_db

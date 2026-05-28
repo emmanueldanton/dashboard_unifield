@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 app = dash.Dash(
     __name__,
-    title="CAD.42 — UNIFIELD Dashboard",
+    title="CAD.42 - UNIFIELD Dashboard",
     suppress_callback_exceptions=True,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
     assets_folder="assets",

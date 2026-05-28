@@ -9,7 +9,7 @@ from notifications.email import send_alert, build_alert_html
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [ALERTER] %(levelname)s — %(message)s",
+    format="%(asctime)s [ALERTER] %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _write_alert_history(subject: str, issues_count: int, recipients: list[str],
                          mailgun_status: str) -> None:
     """Write one document to MongoDB alert_history after each alert send.
 
-    Errors are silently logged — a write failure must never crash the alerter.
+    Errors are silently logged - a write failure must never crash the alerter.
     """
     try:
         from api.mongo_client import get_db
@@ -67,8 +67,8 @@ def check_and_alert():
         ]
 
         subject = (
-            f"UNIFIELD — {len(new_issues)} nouveau(x) problème(s)" if new_issues
-            else "UNIFIELD — Problèmes résolus"
+            f"UNIFIELD - {len(new_issues)} nouveau(x) problème(s)" if new_issues
+            else "UNIFIELD - Problèmes résolus"
         )
         html = build_alert_html(new_issues, resolved_details)
         sent = send_alert(subject, html)
@@ -86,13 +86,13 @@ def check_and_alert():
             mailgun_status=mailgun_status,
         )
     else:
-        logger.info("Aucun changement détecté — aucun mail envoyé")
+        logger.info("Aucun changement détecté - aucun mail envoyé")
 
     _previous_alert_ids = {a["id"] for a in current_alerts}
 
 
 if __name__ == "__main__":
-    logger.info("Alerter démarré — vérification toutes les %d minutes", INTERVAL_MIN)
+    logger.info("Alerter démarré - vérification toutes les %d minutes", INTERVAL_MIN)
     check_and_alert()
     scheduler = BlockingScheduler()
     scheduler.add_job(check_and_alert, "interval", minutes=INTERVAL_MIN)

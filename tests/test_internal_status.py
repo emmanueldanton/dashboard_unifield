@@ -1,4 +1,4 @@
-"""T006/T007 — /internal/status : loopback-only, format JSON, dégradé vs ok."""
+"""T006/T007 - /internal/status : loopback-only, format JSON, dégradé vs ok."""
 import time
 import pytest
 import flask

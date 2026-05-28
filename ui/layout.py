@@ -24,7 +24,7 @@ def create_layout():
         dcc.Store(id="store-loading",        data=False),
         dcc.Store(id="store-doc-open",       data=False),
 
-        # Location — used to trigger SSO session read on page load
+        # Location - used to trigger SSO session read on page load
         dcc.Location(id="url", refresh=False),
 
         # Single source of truth for active tab (D-005)
@@ -33,7 +33,7 @@ def create_layout():
         # conn-status tracks MongoDB connectivity (True = ok, False = degraded)
         dcc.Store(id="conn-status", data=True),
 
-        # Intervals — NEVER share outputs between these two (D-008)
+        # Intervals - NEVER share outputs between these two (D-008)
         dcc.Interval(id="interval-ui",   interval=1_000,   n_intervals=0, disabled=True),
         dcc.Interval(id="interval-15min", interval=900_000, n_intervals=0, disabled=False),
 
@@ -70,7 +70,7 @@ def create_layout():
                 # KPI row
                 html.Div(id="kpi-row", className="kpi-grid"),
 
-                # Tab navigation — active-tab store is the single source of truth
+                # Tab navigation - active-tab store is the single source of truth
                 html.Nav([
                     html.Button("Tableau de bord",   id="btn-tab-dashboard",   n_clicks=0, className="tab-btn"),
                     html.Button("Dispositifs",        id="btn-tab-dispositifs", n_clicks=0, className="tab-btn"),

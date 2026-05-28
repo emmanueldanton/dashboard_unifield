@@ -17,14 +17,14 @@ def send_alert(subject: str, html_body: str, recipients: list[str] = None) -> bo
     Retourne True si l'envoi a réussi, False sinon.
     """
     if not MAILGUN_API_KEY:
-        logger.error("MAILGUN_API_KEY non définie — mail non envoyé")
+        logger.error("MAILGUN_API_KEY non définie - mail non envoyé")
         return False
 
     if recipients is None:
         recipients = [r.strip() for r in ALERT_RECIPIENTS.split(",") if r.strip()]
 
     if not recipients:
-        logger.error("Aucun destinataire défini — mail non envoyé")
+        logger.error("Aucun destinataire défini - mail non envoyé")
         return False
 
     try:
@@ -75,13 +75,13 @@ def build_alert_html(new_issues: list[dict], resolved: list[dict]) -> str:
     return f"""
     <html>
     <body style='font-family:sans-serif;background:#1a1a1a;color:#e0e0e0;padding:24px;'>
-        <h2 style='color:#ffffff;'>🚨 Alerte UNIFIELD — Changement d'état détecté</h2>
+        <h2 style='color:#ffffff;'>🚨 Alerte UNIFIELD - Changement d'état détecté</h2>
 
         {'<h3 style="color:#ff4d4d;">Nouveaux problèmes</h3><table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:left;padding:8px;background:#2a2a2a;">Type</th><th style="text-align:left;padding:8px;background:#2a2a2a;">Projet</th><th style="text-align:left;padding:8px;background:#2a2a2a;">Détail</th></tr>' + rows_new + '</table>' if new_issues else ''}
 
         {'<h3 style="color:#4dff88;margin-top:24px;">Problèmes résolus</h3><table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:left;padding:8px;background:#2a2a2a;">Type</th><th style="text-align:left;padding:8px;background:#2a2a2a;">Projet</th><th style="text-align:left;padding:8px;background:#2a2a2a;">Détail</th></tr>' + rows_resolved + '</table>' if resolved else ''}
 
-        <p style='color:#666;margin-top:32px;font-size:12px;'>CAD42 Dashboard UNIFIELD — Système d'alertes automatiques</p>
+        <p style='color:#666;margin-top:32px;font-size:12px;'>CAD42 Dashboard UNIFIELD - Système d'alertes automatiques</p>
     </body>
     </html>
     """

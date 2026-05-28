@@ -91,16 +91,16 @@ def register(app):
                 enable = cfg.get("enable", False)
                 times  = cfg.get("times", [])
                 if not enable:
-                    lines.append(f"{day_fr} — Fermé")
+                    lines.append(f"{day_fr} - Fermé")
                 elif times:
                     is_h24 = any(
                         s[0] == "00:00" and s[1] in ("23:59","24:00")
                         for s in times if len(s) >= 2
                     )
                     plages = " / ".join(f"{s[0]}–{s[1]}" for s in times if len(s) >= 2)
-                    lines.append(f"{day_fr} — {'24h/24' if is_h24 else plages}")
+                    lines.append(f"{day_fr} - {'24h/24' if is_h24 else plages}")
                 else:
-                    lines.append(f"{day_fr} — Toute la journée")
+                    lines.append(f"{day_fr} - Toute la journée")
             return " · ".join(lines) if lines else "Non défini"
 
         def stat(label, value):
@@ -121,8 +121,8 @@ def register(app):
 
             html.Div([
                 stat("Statut",   statut),
-                stat("Type",     p.get("type", "—")),
-                stat("Ville",    p.get("city", "—") or "—"),
+                stat("Type",     p.get("type", "-")),
+                stat("Ville",    p.get("city", "-") or "-"),
                 stat("Fuseau",   fmt_tz(pdata.get("timezone", "UTC"))),
                 stat("Délai offline", f"{delay}s"),
                 stat("Capteurs", len(trkrs)),
@@ -140,7 +140,7 @@ def register(app):
                         html.Span(f"{score}%", style={
                             "fontWeight": "700", "color": _COLOR[cls], "fontSize": "1.05rem",
                         }),
-                        html.Span(f" — {score_label(score)}", style={
+                        html.Span(f" - {score_label(score)}", style={
                             "fontSize": "0.78rem", "color": C["text_muted"], "marginLeft": "6px",
                         }),
                         html.Div(className="score-track", style={"marginTop": "6px"}, children=[
@@ -165,7 +165,7 @@ def register(app):
                 # Description
                 html.Div([
                     html.Div("Description", className="modal-stat-label"),
-                    html.Div(p.get("description") or "—", className="modal-stat-value",
+                    html.Div(p.get("description") or "-", className="modal-stat-value",
                              style={"fontSize": "0.78rem", "lineHeight": "1.6"}),
                 ], className="modal-stat", style={"gridColumn": "1 / -1"}),
 
@@ -181,7 +181,7 @@ def register(app):
 
             ], className="modal-summary"),
 
-            section_label(f"Capteurs — {len(trkrs)}"),
+            section_label(f"Capteurs - {len(trkrs)}"),
             make_table(build_tracker_rows(trkrs)),
 
         ], className="modal-box")
@@ -266,7 +266,7 @@ def register(app):
                 html.Div(str(value), className="modal-stat-value"),
             ], className="modal-stat", style=style)
 
-        gps_content = "—"
+        gps_content = "-"
         if lat and lon:
             maps_url = f"https://www.google.com/maps?q={lat},{lon}"
             gps_content = html.A(
@@ -279,7 +279,7 @@ def register(app):
         event_rows = []
         for e in capteur_events[:10]:
             ts  = e.get("timestamp") or e.get("createdAt") or e.get("date") or ""
-            ts_str = fmt_local(str(ts), tracker.get("_project_tz","UTC")) if ts else "—"
+            ts_str = fmt_local(str(ts), tracker.get("_project_tz","UTC")) if ts else "-"
             event_rows.append({
                 "Date":    ts_str,
                 "Type":    e.get("type") or e.get("eventType") or "?",
@@ -304,20 +304,20 @@ def register(app):
                 stat("Allumage ce matin",
                      fmt_local(boot_this_morning.isoformat(), tracker.get("_project_tz","UTC")) if boot_this_morning else "Non détecté"),
                 stat("Batterie (V)",
-                     f"{volt:.2f} V" if volt > 0 else "—"),
+                     f"{volt:.2f} V" if volt > 0 else "-"),
                 stat("Peson batterie",
-                     f"{shackle:.2f} V" if isinstance(shackle,(int,float)) and shackle > 0 else "—"),
+                     f"{shackle:.2f} V" if isinstance(shackle,(int,float)) and shackle > 0 else "-"),
                 stat("Température",
-                     f"{temp:.1f} °C" if isinstance(temp,(int,float)) and temp > 0 else "—"),
+                     f"{temp:.1f} °C" if isinstance(temp,(int,float)) and temp > 0 else "-"),
                 stat("Poids",
-                     f"{int(weight)} kg" if isinstance(weight,(int,float)) and weight >= 0 else "—"),
+                     f"{int(weight)} kg" if isinstance(weight,(int,float)) and weight >= 0 else "-"),
                 html.Div([
                     html.Div("GPS", className="modal-stat-label"),
                     html.Div(gps_content, className="modal-stat-value"),
                 ], className="modal-stat"),
             ], className="modal-summary"),
 
-            section_label(f"Historique events — {len(capteur_events)} trouvé(s)"),
+            section_label(f"Historique events - {len(capteur_events)} trouvé(s)"),
             make_table(event_rows) if event_rows
             else html.Div("Aucun event trouvé pour ce capteur.",
                           style={"color":C["text_muted"],"fontSize":"0.82rem","padding":"12px 0"}),
@@ -355,10 +355,10 @@ def register(app):
             rows.append({
                 "Projet": p.get("name","?"),
                 "Type":   p.get("type","?"),
-                "Ville":  p.get("city","—") or "—",
+                "Ville":  p.get("city","-") or "-",
                 "Début":  fmt_date(p.get("startDate")),
                 "Fin":    fmt_date(p.get("endDate")),
-                "Base":   p.get("database","—"),
+                "Base":   p.get("database","-"),
             })
 
         modal = html.Div([
@@ -440,7 +440,7 @@ def register(app):
 
             html.Div([
 
-                section("KPIs — Bandeau permanent", [
+                section("KPIs - Bandeau permanent", [
                     ("Projets actifs",
                     "Projets dont au moins un dispositif a envoyé un lastUpdate dans les 60 dernières secondes précédant le dernier chargement MongoDB. Rafraîchi toutes les 15 min."),
                     ("Fin imminente",
@@ -450,7 +450,7 @@ def register(app):
                     ("Dispositifs connectés",
                     "Dispositifs dont le lastUpdate est inférieur au délai offline du projet (offlineDelay). Le pourcentage représente la santé globale du parc."),
                     ("Batterie faible",
-                    "Dispositifs connectés dont la tension (battery_volt) est sous le seuil configuré (défaut : 3.5V). Cliquable — redirige vers l'onglet Dispositifs filtré."),
+                    "Dispositifs connectés dont la tension (battery_volt) est sous le seuil configuré (défaut : 3.5V). Cliquable - redirige vers l'onglet Dispositifs filtré."),
                 ]),
 
                 section("Onglet Tableau de bord", [
@@ -484,7 +484,7 @@ def register(app):
                     ("Statut Récemment terminés",
                     "endDate dépassée, non encore archivé dans MongoDB."),
                     ("Colonne Score santé",
-                    "Colorée selon 4 niveaux — Excellent ≥ 80% (vert), Bon 55–79% (bleu), Moyen 30–54% (orange), Critique < 30% (rouge). Formule : +50 pts si connecté, +30 pts si batterie OK, +20 pts si poids mesuré, moyenne sur tous les capteurs du projet."),
+                    "Colorée selon 4 niveaux - Excellent ≥ 80% (vert), Bon 55–79% (bleu), Moyen 30–54% (orange), Critique < 30% (rouge). Formule : +50 pts si connecté, +30 pts si batterie OK, +20 pts si poids mesuré, moyenne sur tous les capteurs du projet."),
                     ("Panneau de détail (clic sur une ligne)",
                     "Ouvre un modal avec : score santé visuel + label, alertes actives (⚡ KO / 🕐 Hors schedule / ⚠ Inactif), type, ville, fuseau, délai offline, capteurs connectés/déco/batterie, dates, description, horaires configurés, et tableau complet des dispositifs du projet."),
                     ("Projets archivés",
@@ -505,7 +505,7 @@ def register(app):
                     ("Batterie (V)",
                     "Valeur battery_volt dans lastTrack.message."),
                     ("Peson batterie",
-                    "Valeur shackle_battery dans lastTrack.message — batterie interne du peson."),
+                    "Valeur shackle_battery dans lastTrack.message - batterie interne du peson."),
                     ("Poids (kg)",
                     "Valeur weight dans lastTrack.message."),
                     ("GPS",

@@ -1,5 +1,5 @@
 /**
- * Ecosystem PM2 — dev local uniquement (unifield/ seul).
+ * Ecosystem PM2 - dev local uniquement (unifield/ seul).
  * En production : utiliser l'ecosystem.config.js à la RACINE du monorepo SMSI.
  */
 module.exports = {

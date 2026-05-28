@@ -77,11 +77,11 @@ def last_seen_seconds(t):
 
 
 def age_full(date_str):
-    if not date_str: return "—"
+    if not date_str: return "-"
     try:
         dt   = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         diff = int((datetime.now(timezone.utc) - dt).total_seconds())
-        if diff < 0: return "—"
+        if diff < 0: return "-"
         j, h = diff // 86400, (diff % 86400) // 3600
         m, s = (diff % 3600) // 60, diff % 60
         parts = []
@@ -118,8 +118,8 @@ def score_label(score):
 
 
 def fmt_date(d):
-    try: return datetime.fromisoformat(d.replace("Z","+00:00")).strftime("%d/%m/%Y") if d else "—"
-    except: return "—"
+    try: return datetime.fromisoformat(d.replace("Z","+00:00")).strftime("%d/%m/%Y") if d else "-"
+    except: return "-"
 
 
 def fmt_tz(tz_raw):

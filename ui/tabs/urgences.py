@@ -76,7 +76,7 @@ def render_urgences(data, bt, ending_days, past_days):
 
     return html.Div([
         banner(
-            "Aucune urgence — tous les systèmes sont opérationnels." if nb_urg == 0
+            "Aucune urgence - tous les systèmes sont opérationnels." if nb_urg == 0
             else f"{nb_urg} alerte(s) nécessitent votre attention",
             "ok" if nb_urg == 0 else "danger"
         ),

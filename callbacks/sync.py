@@ -164,7 +164,7 @@ def register(app):
                      "endDate dépassée, non archivés",
                      C["orange"] if segs["past"] else None, "projets"),
             kpi_card("Dispositifs connectés", len(conn),
-                     f"{pct}% du parc — {len(all_t)} total",
+                     f"{pct}% du parc - {len(all_t)} total",
                      C["green"] if pct >= 80 else C["orange"] if pct >= 50 else C["red"], "dispositifs"),
             kpi_card("Batterie faible",   len(bat_low),
                      f"Seuil < {bt}V",

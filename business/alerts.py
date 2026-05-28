@@ -22,7 +22,7 @@ def detect_alerts(data: dict) -> list[dict]:
     for tracker in trackers:
         project  = tracker.get("_project_name", "Projet inconnu")
         unit     = tracker.get("_unit_name", "")
-        label    = f"{project} — {unit}" if unit else project
+        label    = f"{project} - {unit}" if unit else project
         t_id     = tracker.get("id", tracker.get("_id", ""))
 
         # Capteur déconnecté

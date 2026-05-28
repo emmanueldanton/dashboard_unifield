@@ -1,4 +1,4 @@
-"""T002 — auth/routes.py : borne _pending_states + nettoyage périodique."""
+"""T002 - auth/routes.py : borne _pending_states + nettoyage périodique."""
 import time
 import pytest
 

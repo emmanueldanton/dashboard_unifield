@@ -89,11 +89,11 @@ def build_tracker_rows(trackers):
             "Dernière activité (Heure locale)": fmt_local(t.get("lastUpdate",""), t.get("_project_tz","UTC")),
             "Âge":              age_full(t.get("lastUpdate","")),
             "Fuseau":           t.get("_project_tz", "UTC"),
-            "Batt. (V)":        f"{volt:.2f}" if isinstance(volt,(int,float)) and volt > 0 else "—",
-            "Peson batt":       f"{shackle:.2f}" if isinstance(shackle,(int,float)) and shackle > 0 else "—",
-            "Temp.":            f"{temp:.1f}°C" if isinstance(temp,(int,float)) and temp > 0 else "—",
-            "Poids (kg)":       f"{int(weight)}" if isinstance(weight,(int,float)) and weight >= 0 else "—",
-            "GPS":              f"{round(lat,5)}, {round(lon,5)}" if lat and lon else "—",
+            "Batt. (V)":        f"{volt:.2f}" if isinstance(volt,(int,float)) and volt > 0 else "-",
+            "Peson batt":       f"{shackle:.2f}" if isinstance(shackle,(int,float)) and shackle > 0 else "-",
+            "Temp.":            f"{temp:.1f}°C" if isinstance(temp,(int,float)) and temp > 0 else "-",
+            "Poids (kg)":       f"{int(weight)}" if isinstance(weight,(int,float)) and weight >= 0 else "-",
+            "GPS":              f"{round(lat,5)}, {round(lon,5)}" if lat and lon else "-",
         })
     return rows
 
@@ -136,7 +136,7 @@ def collapsible(title, count, content, tone=None):
                 "letterSpacing": "0.1em",
                 "textTransform": "uppercase",
             }),
-            html.Span(f" — {count}", style={
+            html.Span(f" - {count}", style={
                 "fontSize": "0.68rem",
                 "fontWeight": "700",
                 "color": color,

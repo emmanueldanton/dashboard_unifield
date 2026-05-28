@@ -1,4 +1,4 @@
-"""T003/T004 — alertes : build_alert_table + render_alertes scaffold."""
+"""T003/T004 - alertes : build_alert_table + render_alertes scaffold."""
 from dash import html
 
 
