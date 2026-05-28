@@ -98,11 +98,12 @@ def render_capteurs(data, filtre_conn="Connectés", filtre_batt="Tous", filtre_p
 # ── New render_dispositifs wrapper (T027) ─────────────────────────────────────
 
 def render_dispositifs(data):
-    all_t   = data["all_trackers"]
-    projets = sorted(set(t.get("_project_name", "?") for t in all_t))
-    rows    = build_tracker_rows(all_t)
-    cols    = [{"name": c, "id": c} for c in rows[0].keys()
-               if not c.startswith("_")] if rows else []
+    all_t     = data["all_trackers"]
+    projets   = sorted(set(t.get("_project_name", "?") for t in all_t))
+    connected = [t for t in all_t if t.get("_is_connected")]
+    rows      = build_tracker_rows(connected)
+    cols      = [{"name": c, "id": c} for c in rows[0].keys()
+                 if not c.startswith("_")] if rows else []
 
     proj_opts = [{"label": "Tous", "value": "Tous"}] + [
         {"label": p, "value": p} for p in projets
@@ -126,7 +127,7 @@ def render_dispositifs(data):
                     id="filter-connexion",
                     options=[{"label": v, "value": v}
                              for v in ["Tous", "Connectés", "Déconnectés"]],
-                    value="Tous",
+                    value="Connectés",
                     clearable=False,
                     className="dd-filter",
                 ),
@@ -154,7 +155,8 @@ def render_dispositifs(data):
             ], style={"flex": "2"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "16px"}),
 
-        section_label(f"Dispositifs — {len(rows)} au total"),
+        html.Div(id="label-dispositifs",
+                 children=section_label(f"Dispositifs — {len(rows)} connecté(s) / {len(all_t)} au total")),
 
         html.Div(
             dash_table.DataTable(

@@ -60,5 +60,24 @@ def check_auth():
 app.layout = create_layout()
 register_all_callbacks(app)
 
+# ── Threads de démarrage ──────────────────────────────────────────────────────
+import threading
+
+# Probe auth-api (sauf bypass dev)
+if not (config.UNIFIELD_DEV_AUTH_BYPASS and config.APP_ENV != "production"):
+    from auth.microsoft_flow import probe_auth_api
+    threading.Thread(target=probe_auth_api, daemon=True, name="auth-api-probe").start()
+
+# Préchargement initial du cache MongoDB
+from cache import force_refresh as _startup_refresh
+
+def _preload():
+    import time
+    time.sleep(2)          # laisse Gunicorn finir son init
+    log.info('{"event": "startup_preload", "msg": "chargement initial MongoDB"}')
+    _startup_refresh()
+
+threading.Thread(target=_preload, daemon=True, name="startup-preload").start()
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=7060)

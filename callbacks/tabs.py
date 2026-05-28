@@ -6,11 +6,11 @@ import plotly.graph_objects as go
 from dash import html, Output, Input, State, ctx
 
 from config import (
-    BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS, C,
+    BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS, ACTIVITY_WINDOW_SECONDS, C,
 )
 from cache import get_cached_data, _state
 from business.trackers import filter_data
-from ui.components import banner, build_tracker_rows as _btr
+from ui.components import banner, build_tracker_rows as _btr, section_label
 
 
 def register(app):
@@ -72,23 +72,22 @@ def register(app):
         data   = filter_data(data)
         seuils = seuils or {}
         bt     = seuils.get("bt", BATTERY_WARNING_THRESHOLD)
-        am     = seuils.get("am", "00:01")
         ed     = seuils.get("ed", ENDING_SOON_DAYS)
 
         if tab == "dashboard":
             from ui.tabs.dashboard import render_dashboard
-            return render_dashboard(data, bt, am, ed, PAST_DAYS)
+            return render_dashboard(data, bt, ed, PAST_DAYS)
         if tab == "dispositifs":
             from ui.tabs.dispositifs import render_dispositifs
             return render_dispositifs(data)
         if tab == "projets":
             from ui.tabs.projets import render_projets
-            return render_projets(data, bt, am, ed, PAST_DAYS)
+            return render_projets(data, bt, ed, PAST_DAYS)
         if tab == "alertes":
             from ui.tabs.alertes import render_alertes
             return render_alertes(data)
         from ui.tabs.dashboard import render_dashboard
-        return render_dashboard(data, bt, am, ed, PAST_DAYS)
+        return render_dashboard(data, bt, ed, PAST_DAYS)
 
     # ── 4. Snapshot graph (T024) ──────────────────────────────────────────────
     @app.callback(
@@ -147,8 +146,10 @@ def register(app):
 
     # ── 5. Filter dispositifs table (T028) ────────────────────────────────────
     @app.callback(
-        Output("table-dispositifs", "data"),
-        Output("table-dispositifs", "columns"),
+        Output("table-dispositifs",    "data"),
+        Output("table-dispositifs",    "columns"),
+        Output("store-dispositif-rows","data"),
+        Output("label-dispositifs",    "children"),
         Input("filter-connexion",    "value"),
         Input("filter-batterie",     "value"),
         Input("filter-projet-multi", "value"),
@@ -157,7 +158,7 @@ def register(app):
     def filter_dispositifs(conn_filter, batt_filter, proj_filter):
         data = get_cached_data()
         if not data:
-            return [], []
+            return [], [], [], section_label("Dispositifs — 0 résultat")
         all_t = data.get("all_trackers", [])
 
         filtered = all_t[:]
@@ -177,7 +178,29 @@ def register(app):
         rows = _btr(filtered)
         cols = [{"name": c, "id": c} for c in rows[0].keys()
                 if not c.startswith("_")] if rows else []
-        return rows, cols
+
+        # ── Label descriptif ──────────────────────────────────────────────────
+        total   = len(all_t)
+        count   = len(filtered)
+        parts   = []
+        if conn_filter and conn_filter != "Tous":
+            parts.append(conn_filter)
+        if batt_filter and batt_filter != "Tous":
+            parts.append(f"Batterie {batt_filter}")
+        if proj_filter:
+            if len(proj_filter) == 1:
+                parts.append(f"Projet : {proj_filter[0]}")
+            else:
+                parts.append(f"{len(proj_filter)} projets")
+
+        if not parts:
+            label_text = f"Dispositifs — {count} au total"
+        elif len(parts) == 1 and not proj_filter:
+            label_text = f"Dispositifs — {count} {parts[0].lower()} / {total} au total"
+        else:
+            label_text = f"Dispositifs — {count} résultat(s) · {', '.join(parts)} / {total} au total"
+
+        return rows, cols, rows, section_label(label_text)
 
     # ── 6. Device detail modal (T029) ─────────────────────────────────────────
     @app.callback(
@@ -239,6 +262,7 @@ def register(app):
     # ── 8. Filter projets (T032) ──────────────────────────────────────────────
     @app.callback(
         Output("projets-container", "children"),
+        Output("label-projets",     "children"),
         Input("search-projet",       "value"),
         Input("filter-type-projet",  "value"),
         Input("filter-statut-projet","value"),
@@ -251,25 +275,19 @@ def register(app):
         from dash import dash_table
         from business.trackers import health_score, battery_status, fmt_local, fmt_date, fmt_tz
         from business.segments import compute_segments
-        from config import PARIS_TZ
 
         data = get_cached_data()
         if not data or not data.get("projects"):
-            return dash.no_update
+            return dash.no_update, dash.no_update
 
         data = filter_data(data)
         seuils  = seuils or {}
         bt      = seuils.get("bt", BATTERY_WARNING_THRESHOLD)
-        am      = seuils.get("am", "00:01")
         ed      = seuils.get("ed", ENDING_SOON_DAYS)
 
-        now      = datetime.now(timezone.utc)
-        _pnow    = now.astimezone(PARIS_TZ)
-        _rh, _rm = map(int, (am or "00:01").split(":"))
-        _act_sec = max(1, int(
-            (_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()
-        ))
-        segs   = compute_segments(data["projects"], data["project_data"], now, _act_sec, ed, PAST_DAYS)
+        now    = datetime.now(timezone.utc)
+        segs   = compute_segments(data["projects"], data["project_data"],
+                                  now, ACTIVITY_WINDOW_SECONDS, ed, PAST_DAYS)
         pd_map = data["project_data"]
 
         filtre_map = {
@@ -295,7 +313,6 @@ def register(app):
             delay = p.get("offlineDelay", 60)
             score = health_score(trkrs, delay, bt)
             conn  = sum(1 for t in trkrs if t.get("_is_connected", False))
-            disc  = len(trkrs) - conn
             bat_l = sum(1 for t in trkrs if battery_status(t, bt) == "faible")
             if p in segs["ending"]:   statut = "🟠 Bientôt terminé"
             elif p in segs["active"]: statut = "🟢 Actif"
@@ -304,29 +321,57 @@ def register(app):
             else:                     statut = "⚪ Inactif"
             last_seen = max((t.get("lastUpdate", "") for t in trkrs), default="")
             rows.append({
-                "_pid":          pid,
-                "Projet":        p.get("name", "?"),
-                "Type":          p.get("type", "?"),
-                "Statut":        statut,
-                "Score santé":   f"{score}%",
-                "Capteurs":      len(trkrs),
-                "Connectés":     conn,
-                "Déconnectés":   disc,
-                "Batt. faible":  bat_l,
+                "_pid":              pid,
+                "_score_num":        score,
+                "Projet":            p.get("name", "?"),
+                "Type":              p.get("type", "?"),
+                "Statut":            statut,
+                "Score santé":       f"{score}%",
+                "Capteurs":          len(trkrs),
+                "Connectés":         conn,
+                "Batt. faible":      bat_l,
                 "Dernière activité": fmt_local(last_seen, pdata.get("timezone", "UTC")),
-                "Début":         fmt_date(p.get("startDate")),
-                "Fin":           fmt_date(p.get("endDate")),
+                "Fuseau":            fmt_tz(pdata.get("timezone", "UTC")),
+                "Fin":               fmt_date(p.get("endDate")),
             })
 
-        return html.Div(
+        score_conds = [
+            {"if": {"filter_query": "{_score_num} >= 80",                     "column_id": "Score santé"},
+             "backgroundColor": C["green_bg"],  "color": C["green"],  "fontWeight": "700"},
+            {"if": {"filter_query": "{_score_num} >= 55 && {_score_num} < 80","column_id": "Score santé"},
+             "backgroundColor": C["accent_bg"], "color": C["accent"], "fontWeight": "700"},
+            {"if": {"filter_query": "{_score_num} >= 30 && {_score_num} < 55","column_id": "Score santé"},
+             "backgroundColor": C["orange_bg"], "color": C["orange"], "fontWeight": "700"},
+            {"if": {"filter_query": "{_score_num} >= 0  && {_score_num} < 30","column_id": "Score santé"},
+             "backgroundColor": C["red_bg"],    "color": C["red"],    "fontWeight": "700"},
+        ]
+
+        # ── Label descriptif ─────────────────────────────────────────────────
+        sf = statut_filter or "Tous"
+        labels_map = {
+            "Actifs":             f"{len(rows)} projet(s) actif(s)",
+            "Inactifs":           f"{len(rows)} projet(s) inactif(s)",
+            "Fin imminente":      f"{len(rows)} projet(s) en fin imminente",
+            "Récemment terminés": f"{len(rows)} projet(s) récemment terminé(s)",
+            "Tous":               f"{len(rows)} projet(s) au total",
+        }
+        titre = labels_map.get(sf, f"{len(rows)} projets")
+        parts = []
+        if type_filter and type_filter != "Tous":
+            parts.append(f"Type : {type_filter}")
+        if search and search.strip():
+            parts.append(f'Recherche : "{search.strip()}"')
+        if parts:
+            titre += f" · {', '.join(parts)}"
+
+        table_el = html.Div(
             dash_table.DataTable(
                 id="table-projets",
                 data=rows,
                 columns=[{"name": c, "id": c} for c in rows[0].keys()
                          if not c.startswith("_")] if rows else [],
-                page_size=15,
+                page_size=20,
                 sort_action="native",
-                filter_action="native",
                 row_selectable="single",
                 selected_rows=[],
                 style_table={"overflowX": "auto", "minWidth": "800px"},
@@ -349,10 +394,13 @@ def register(app):
                     {"if": {"state": "selected"},
                      "backgroundColor": "var(--accent-bg)",
                      "border": "1px solid var(--accent)"},
+                    *score_conds,
                 ],
             ),
             style={"border": f"1px solid {C['border']}", "borderRadius": "10px",
-                   "overflowX": "auto"}
+                   "overflowX": "auto", "overflowY": "visible"}
         ) if rows else html.Div(
             "Aucune donnée.", style={"color": C["text_muted"], "padding": "16px 0"}
         )
+
+        return table_el, section_label(titre)

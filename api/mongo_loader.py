@@ -1,17 +1,20 @@
 """MongoDB loader — iso-interface with api/loader.py.
 
-Architecture réelle : 1 base MongoDB = 1 projet (pattern NNNN_slug).
-Pas de base centrale — découverte automatique de toutes les bases avec trackers.
+Architecture réelle : registre central cad42Users.projects (391 projets) avec
+champ 'database' pointant vers la base per-projet (NNNN_* ou cad42_* ou autre).
 
-Phase 1 : toutes les bases NNNN_* — trackers + lastTrack résolu + enrichissements
-          → marque chaque base "active" si lastUpdate d'au moins un tracker < 30s
-Phase 2 : bases actives seulement — units, events, association tracker↔unit (in-place)
+Pré-phase : 1 requête sur cad42Users.projects → dict {database: project_doc}
+Phase 1   : toutes les bases du registre → trackers + lastTrack résolu +
+            enrichissements + project_meta injecté depuis le registre.
+            → marque chaque base "active" si lastUpdate d'au moins 1 tracker < 30s
+Phase 2   : bases actives seulement → units, events, association tracker↔unit
+            (in-place, inchangée).
 
 Output dict keys and all _* enrichments must match api/loader.py exactly.
 """
 from __future__ import annotations
-import re
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
 from datetime import datetime, timezone
 
 try:
@@ -25,14 +28,21 @@ from business.trackers import is_connected, battery_status, battery_volt, weight
 
 log = logging.getLogger(__name__)
 
-# Pattern des bases projets : NNNN_slug (ex: 0382_eiffaget)
-_DB_PATTERN = re.compile(r'^\d+_')
-
 # Délai offline par défaut en secondes (1 heure)
 _DEFAULT_OFFLINE_DELAY = 3600
 
 # Seuil d'activité : tracker "actif" si lastUpdate émis il y a moins de N secondes
 ACTIVE_TRACKER_SECONDS = 30
+
+# Base du registre global des projets
+_REGISTRY_DB  = "cad42Users"
+_REGISTRY_COL = "projects"
+
+# Parallélisme Phase 1 : nombre de workers pour scanner les bases en simultané.
+# 4 workers = bon compromis vitesse/charge sur un Atlas partagé (×4.5 vs séquentiel).
+# Passer à 8 si l'app est seule sur le cluster ; ne pas dépasser 10.
+# Chaque worker ouvre une connexion du pool pymongo (max_pool_size=100 par défaut).
+_MAX_P1_WORKERS = 4
 
 
 # ── Adaptateurs ──────────────────────────────────────────────────────────────
@@ -121,6 +131,37 @@ def _has_active_tracker(trackers: list[dict], now: datetime) -> bool:
     return False
 
 
+# ── Registre central ─────────────────────────────────────────────────────────
+
+def _load_project_registry(client) -> dict[str, dict]:
+    """Charge cad42Users.projects en une seule requête.
+
+    Retourne un dict {database_name: project_doc} pour injection rapide dans
+    _phase1_load_trackers() sans aucune requête supplémentaire par base.
+    Erreur silencieuse : si le registre est inaccessible, les bases actives
+    restent chargées avec les métadonnées minimales dérivées du nom de base.
+    """
+    try:
+        db   = client[_REGISTRY_DB]
+        docs = db[_REGISTRY_COL].find(
+            {"database": {"$exists": True, "$ne": ""}},
+            {"name": 1, "code": 1, "type": 1, "description": 1,
+             "startDate": 1, "endDate": 1, "archived": 1,
+             "offlineDelay": 1, "city": 1, "schedule": 1, "database": 1,
+             "timezone": 1, "utc": 1},
+        )
+        registry: dict[str, dict] = {}
+        for doc in docs:
+            db_field = doc.get("database", "")
+            if db_field:
+                registry[db_field] = doc
+        log.info('{"event": "registry_loaded", "projects": %d}', len(registry))
+        return registry
+    except Exception as exc:
+        log.warning('{"event": "registry_load_failed", "detail": "%s"}', str(exc)[:120])
+        return {}
+
+
 # ── QC structure ─────────────────────────────────────────────────────────────
 
 def _empty_qc(total: int) -> dict:
@@ -148,8 +189,13 @@ def _empty_qc(total: int) -> dict:
 
 def _phase1_load_trackers(
     client, dbname: str, now: datetime,
+    project_doc: dict | None = None,
 ) -> tuple[dict, dict, bool] | None:
     """Charge les trackers d'une base projet (sans units ni events).
+
+    project_doc : document du registre cad42Users.projects (optionnel).
+                  S'il est fourni, les métadonnées réelles (name, dates, schedule…)
+                  sont utilisées. Sinon, on dérive du nom de base (fallback).
 
     Returns (project_meta, tracker_map, is_active) ou None si la base est ignorée.
     tracker_map : {str(_id): tracker adapté + enrichissements business}
@@ -179,25 +225,28 @@ def _phase1_load_trackers(
     if not raw_trackers:
         return None
 
-    parts = dbname.split("_", 1)
-    code  = parts[0]
-    slug  = parts[1] if len(parts) > 1 else dbname
-    pid   = dbname
-    name  = slug
-    offline_delay = _DEFAULT_OFFLINE_DELAY
+    # ── Métadonnées projet : registre > fallback dbname ───────────────────────
+    reg           = project_doc or {}
+    parts         = dbname.split("_", 1)
+    fallback_name = parts[1] if len(parts) > 1 else dbname
+    fallback_code = parts[0]
+
+    pid           = dbname
+    name          = reg.get("name") or fallback_name
+    offline_delay = int(reg.get("offlineDelay") or _DEFAULT_OFFLINE_DELAY)
 
     project_meta = {
         "id":           pid,
         "name":         name,
-        "code":         code,
-        "archived":     False,
+        "code":         reg.get("code") or fallback_code,
+        "archived":     bool(reg.get("archived", False)),
         "offlineDelay": offline_delay,
-        "startDate":    None,
-        "endDate":      None,
-        "type":         "construction",
-        "city":         "",
-        "description":  "",
-        "schedule":     {},
+        "startDate":    _dt_to_iso(reg.get("startDate")),
+        "endDate":      _dt_to_iso(reg.get("endDate")),
+        "type":         reg.get("type") or "construction",
+        "city":         reg.get("city", ""),
+        "description":  reg.get("description", ""),
+        "schedule":     reg.get("schedule") or {},
         "database":     dbname,
     }
 
@@ -388,38 +437,63 @@ def _phase2_load_details(
 # ── Loader principal ──────────────────────────────────────────────────────────
 
 def load_all_data(_email=None, _key=None) -> dict:
-    """Charge toutes les données depuis MongoDB (multi-base) — chargement en 2 phases.
+    """Charge toutes les données depuis MongoDB — pré-phase + 2 phases.
 
-    Phase 1 : tous les NNNN_* → trackers uniquement, détection bases actives (< 30s)
-    Phase 2 : bases actives seulement → units, events, association tracker↔unit
+    Pré-phase : 1 requête sur cad42Users.projects → registre {database: project_doc}
+    Phase 1   : toutes les bases du registre → trackers + métadonnées injectées,
+                détection bases actives (lastUpdate < ACTIVE_TRACKER_SECONDS)
+    Phase 2   : bases actives seulement → units, events, association tracker↔unit
 
     Signature conserve (email, key) pour compatibilité drop-in avec api/loader.py.
     """
     client = get_db().client
     now    = datetime.now(timezone.utc)
 
-    try:
-        all_dbs = client.list_database_names()
-    except Exception as exc:
-        log.error('{"event": "mongo_refresh_failed", "reason": "list_databases", "error": "%s"}', exc)
-        return {
-            "projects": [], "project_data": {}, "all_units": [],
-            "all_trackers": [], "all_events": [], "qc": {}, "loaded_at": None,
-        }
+    # ── Pré-phase : registre central (1 requête) ──────────────────────────────
+    registry    = _load_project_registry(client)
+    project_dbs = list(registry.keys()) if registry else []
 
-    project_dbs = [db for db in all_dbs if _DB_PATTERN.match(db)]
+    # Fallback si le registre est inaccessible : toutes les bases du cluster
+    if not project_dbs:
+        log.warning('{"event": "registry_fallback", "msg": "using list_database_names"}')
+        try:
+            import re as _re
+            _pat = _re.compile(r"^\d+_")
+            project_dbs = [db for db in client.list_database_names() if _pat.match(db)]
+        except Exception as exc:
+            log.error('{"event": "mongo_refresh_failed", "reason": "list_databases", "error": "%s"}', exc)
+            return {
+                "projects": [], "project_data": {}, "all_units": [],
+                "all_trackers": [], "all_events": [], "qc": {}, "loaded_at": None,
+            }
+
     qc = _empty_qc(len(project_dbs))
 
-    # ── Phase 1 : trackers de toutes les bases ────────────────────────────────
-    phase1: list[tuple[dict, dict, bool]] = []
-    for dbname in project_dbs:
-        try:
-            result = _phase1_load_trackers(client, dbname, now)
-        except Exception as exc:
-            log.warning('{"event": "phase1_error", "db": "%s", "error": "%s"}', dbname, exc)
-            continue
-        if result is not None:
-            phase1.append(result)
+    # ── Phase 1 : trackers de toutes les bases en parallèle ──────────────────
+    # pymongo MongoClient est thread-safe (pool de connexions interne).
+    # _MAX_P1_WORKERS workers (module-level) : bon compromis vitesse / charge Atlas.
+    _p1_raw: dict[str, tuple | None] = {}
+
+    def _load_one_db(dbname: str) -> tuple | None:
+        return _phase1_load_trackers(
+            client, dbname, now,
+            project_doc=registry.get(dbname),
+        )
+
+    with ThreadPoolExecutor(max_workers=_MAX_P1_WORKERS) as pool:
+        fut_map = {pool.submit(_load_one_db, db): db for db in project_dbs}
+        for fut in _as_completed(fut_map):
+            db = fut_map[fut]
+            try:
+                _p1_raw[db] = fut.result()
+            except Exception as exc:
+                log.warning('{"event": "phase1_error", "db": "%s", "error": "%s"}', db, exc)
+                _p1_raw[db] = None
+
+    # Reconstitue l'ordre original du registre (stable entre refreshes)
+    phase1: list[tuple[dict, dict, bool]] = [
+        _p1_raw[db] for db in project_dbs if _p1_raw.get(db) is not None
+    ]
 
     active_count   = sum(1 for _, _, active in phase1 if active)
     inactive_count = len(phase1) - active_count
@@ -429,7 +503,9 @@ def load_all_data(_email=None, _key=None) -> dict:
     )
     qc["projects_active"] = active_count
 
-    # ── Phase 2 : détails des bases actives ───────────────────────────────────
+    # ── Phase 2 : détails des bases ACTIVES uniquement ────────────────────────
+    # Les bases inactives sont ignorées — seules les données fraîches (actives)
+    # reçoivent la résolution units↔trackers et le chargement des events.
     projects:     list[dict] = []
     project_data: dict       = {}
     all_events:   list[dict] = []
@@ -438,10 +514,10 @@ def load_all_data(_email=None, _key=None) -> dict:
         projects.append({**project_meta, "active": is_active})
 
         if not is_active:
-            continue
+            continue                          # pas de Phase 2 pour les bases inactives
 
-        pid          = project_meta["id"]
-        name         = project_meta["name"]
+        pid           = project_meta["id"]
+        name          = project_meta["name"]
         offline_delay = project_meta["offlineDelay"]
 
         try:
@@ -455,7 +531,7 @@ def load_all_data(_email=None, _key=None) -> dict:
         project_data[pid] = pdata
         all_events.extend(pdata["events"])
 
-    # ── Flatten all_trackers (toutes bases, enrichis par Phase 2 si active) ───
+    # ── Flatten all_trackers (toutes bases, enrichis par Phase 2 si actifs) ───
     all_trackers: list[dict] = []
     all_units:    list[dict] = []
     for _, tracker_map, _ in phase1:
@@ -464,8 +540,9 @@ def load_all_data(_email=None, _key=None) -> dict:
         all_units.extend(pdata["units"])
 
     log.info(
-        '{"event": "mongo_refresh_ok", "dbs_scanned": %d, "active": %d, "trackers_total": %d, "units": %d}',
-        len(project_dbs), active_count, len(all_trackers), len(all_units),
+        '{"event": "mongo_refresh_ok", "registry": %d, "dbs_scanned": %d, "active": %d, '
+        '"trackers_total": %d, "units": %d}',
+        len(registry), len(project_dbs), active_count, len(all_trackers), len(all_units),
     )
 
     return {

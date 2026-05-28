@@ -6,7 +6,7 @@ from ui.components import section_label
 from ui.tabs.urgences import render_urgences
 
 
-def render_dashboard(data, bt=BATTERY_WARNING_THRESHOLD, am="00:01",
+def render_dashboard(data, bt=BATTERY_WARNING_THRESHOLD,
                      ed=ENDING_SOON_DAYS, past_days=PAST_DAYS):
     projects = data.get("projects", [])
     proj_options = [{"label": "Tous les projets", "value": "__all__"}] + [
@@ -15,7 +15,7 @@ def render_dashboard(data, bt=BATTERY_WARNING_THRESHOLD, am="00:01",
     ]
 
     return html.Div([
-        render_urgences(data, bt, am, ed, past_days),
+        render_urgences(data, bt, ed, past_days),
 
         html.Div(style={"height": "32px"}),
         section_label("Évolution des états par projet"),

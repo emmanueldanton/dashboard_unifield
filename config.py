@@ -30,6 +30,11 @@ BATTERY_WARNING_THRESHOLD = 3.5
 ENDING_SOON_DAYS          = 30
 PAST_DAYS                 = 10
 
+# Fenêtre d'activité MongoDB : une base est "active" si au moins un tracker
+# a envoyé un lastUpdate dans les ACTIVITY_WINDOW_SECONDS précédant le dernier
+# chargement (aligné sur le critère Phase 1 → Phase 2 de mongo_loader.py).
+ACTIVITY_WINDOW_SECONDS = 60
+
 PARASITE_KEYWORDS = {"atelier", "stock", "test", "dev"}
 
 PARIS_TZ = ZoneInfo("Europe/Paris")

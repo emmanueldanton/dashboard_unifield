@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import dash
 from dash import html, Output, Input, State, ctx
 
-from config import C, PARIS_TZ
+from config import C, PARIS_TZ, ACTIVITY_WINDOW_SECONDS
 from cache import (register_creds, force_refresh, invalidate,
                    get_cache_version, get_cached_data, _state,
                    is_mongo_ok, last_success_ts)
@@ -63,21 +63,29 @@ def register(app):
                 return {"v": v, "email": email}, False
             return dash.no_update, True
 
+        # Fallthrough (chargement initial ou trigger inconnu).
+        # Si le cache est vide et rien ne tourne → démarrer le premier refresh
+        # et activer interval-ui immédiatement pour que l'UI suive le chargement.
         email = (creds or {}).get("email", "")
+        register_creds()
         state = _state()
         loading = state.get("loading", False)
         v = get_cache_version()
+        if not loading and state.get("data") is None:
+            force_refresh()
+            return {"v": 0, "email": email}, True   # active interval-ui tout de suite
         if cur and cur.get("v") == v:
             return dash.no_update, loading
         return {"v": v, "email": email}, loading
 
-    # interval-ui is enabled only while loading (animation only) ─ D-008
+    # interval-ui actif dès que store-loading=True OU que le thread cache tourne
+    # (couvre le cas du preload démarré avant la première connexion utilisateur)
     @app.callback(
         Output("interval-ui", "disabled"),
         Input("store-loading", "data"),
     )
     def toggle_interval_ui(loading):
-        return not loading
+        return not (bool(loading) or _state().get("loading", False))
 
     # ── MongoDB connectivity status → conn-status store ───────────────────────
     @app.callback(
@@ -132,37 +140,33 @@ def register(app):
         if not data.get("projects"):
             return [kpi_card("Projets actifs", 0, "En attente de données")]
 
-        bt = (seuils or {}).get("bt", 3.5)
-        ed = (seuils or {}).get("ed", 30)
-        am = (seuils or {}).get("am", "00:01")
-        now   = datetime.now(timezone.utc)
-        _pnow = now.astimezone(PARIS_TZ)
-        _rh, _rm = map(int, am.split(":"))
-        _act_sec = max(1, int(
-            (_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()
-        ))
-        segs  = compute_segments(data["projects"], data["project_data"], now, _act_sec, ed, PAST_DAYS)
-        all_t = data["all_trackers"]
+        bt  = (seuils or {}).get("bt", 3.5)
+        ed  = (seuils or {}).get("ed", 30)
+        now = datetime.now(timezone.utc)
+        segs  = compute_segments(data["projects"], data["project_data"],
+                                 now, ACTIVITY_WINDOW_SECONDS, ed, PAST_DAYS)
+        all_t   = data["all_trackers"]
         conn    = [t for t in all_t if t.get("_is_connected", False)]
         bat_low = [t for t in all_t
                    if battery_status(t, bt) == "faible"
-                   and 0 <= t.get("_last_seen_seconds", -1) < _act_sec]
+                   and (t.get("_is_connected", False)
+                        or 0 <= t.get("_last_seen_seconds", -1) < 86400)]
         pct = round(len(conn) / len(all_t) * 100) if all_t else 0
 
         return [
             kpi_card("Projets actifs",    len(segs["active"]),
-                     f"Signal depuis {am} — {len(segs['total'])} dans le parc",
+                     f"lastUpdate < {ACTIVITY_WINDOW_SECONDS}s au dernier chargement · {len(segs['total'])} projets en cours",
                      C["green"] if segs["active"] else C["text_muted"], "projets"),
             kpi_card("Fin imminente",     len(segs["ending"]),
                      f"Dans les {int(ed)} prochains jours",
-                     C["orange"] if segs["ending"] else None, "urgences"),
+                     C["orange"] if segs["ending"] else None, "dashboard"),
             kpi_card("Projets terminés",  len(segs["past"]),
                      "endDate dépassée, non archivés",
                      C["orange"] if segs["past"] else None, "projets"),
             kpi_card("Dispositifs connectés", len(conn),
                      f"{pct}% du parc — {len(all_t)} total",
-                     C["green"] if pct >= 80 else C["orange"] if pct >= 50 else C["red"], "capteurs"),
+                     C["green"] if pct >= 80 else C["orange"] if pct >= 50 else C["red"], "dispositifs"),
             kpi_card("Batterie faible",   len(bat_low),
                      f"Seuil < {bt}V",
-                     C["orange"] if bat_low else None, "urgences"),
+                     C["orange"] if bat_low else None, "dashboard"),
         ]

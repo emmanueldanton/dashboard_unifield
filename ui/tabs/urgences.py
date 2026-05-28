@@ -2,29 +2,36 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from dash import html
 
-from config import PARIS_TZ
+from config import ACTIVITY_WINDOW_SECONDS
 from business.trackers import battery_status, fmt_date
 from business.schedule import check_schedule_anomalies
 from business.segments import compute_segments
 from ui.components import banner, collapsible, make_table_searchable, build_tracker_rows
 
 
-def render_urgences(data, bt, activity_min, ending_days, past_days):
-    now       = datetime.now(timezone.utc)
-    paris_now = now.astimezone(PARIS_TZ)
-    ref_h, ref_m = map(int, (activity_min or "00:01").split(":"))
-    ref_dt    = paris_now.replace(hour=ref_h, minute=ref_m, second=0, microsecond=0)
-    activity_sec = max(1, int((paris_now - ref_dt).total_seconds()))
+def render_urgences(data, bt, ending_days, past_days):
+    now          = datetime.now(timezone.utc)
+    activity_sec = ACTIVITY_WINDOW_SECONDS
     segs = compute_segments(data["projects"], data["project_data"], now,
                             activity_sec, ending_days, past_days)
-    all_t        = data["all_trackers"]
-    battery_low = [t for t in all_t 
-               if battery_status(t, bt) == "faible"
-               and 0 <= t.get("_last_seen_seconds", -1) < activity_sec]
-
     from business.trackers import _msg
-    battery_unk  = [t for t in all_t if battery_status(t, bt) == "inconnu" and "battery_volt" in _msg(t)]
-    weight_unk   = [t for t in all_t if t.get("_weight_status") == "inconnu" and "weight" in _msg(t)]
+
+    all_t = data["all_trackers"]
+
+    battery_low = [t for t in all_t
+                   if battery_status(t, bt) == "faible"
+                   and (t.get("_is_connected", False)
+                        or 0 <= t.get("_last_seen_seconds", -1) < 86400)]
+
+    battery_unk = [t for t in all_t
+                   if battery_status(t, bt) == "inconnu"
+                   and "battery_volt" in _msg(t)]
+
+    weight_unk  = [t for t in all_t
+                   if t.get("_weight_status") == "inconnu"
+                   and "weight" in _msg(t)
+                   and (t.get("_is_connected", False)
+                        or 0 <= t.get("_last_seen_seconds", -1) < 86400)]
 
     ending_rows = []
     for p in segs["ending"]:
@@ -46,7 +53,7 @@ def render_urgences(data, bt, activity_min, ending_days, past_days):
         _trkrs = data["project_data"].get(_p.get("id",""), {}).get("trackers", [])
         _proj_tz = data["project_data"].get(_p.get("id",""), {}).get("timezone", "UTC")
         _hs, _mq = check_schedule_anomalies(
-            _trkrs, _p.get("schedule", {}), now, _proj_tz, activity_sec
+            _trkrs, _p.get("schedule", {}), now, _proj_tz
         )
         all_hors.extend(_hs)
         all_manquants.extend(_mq)

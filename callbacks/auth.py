@@ -42,15 +42,13 @@ def register(app):
 
     @app.callback(
         Output("store-seuils", "data"),
-        Input("seuil-battery",  "value"),
-        Input("seuil-ending",   "value"),
-        Input("seuil-activity", "value"),
+        Input("seuil-battery", "value"),
+        Input("seuil-ending",  "value"),
         prevent_initial_call=True,
     )
-    def save_seuils(batt, ending, activity):
+    def save_seuils(batt, ending):
         return {
-            "bt": batt     or BATTERY_WARNING_THRESHOLD,
-            "ed": ending   or ENDING_SOON_DAYS,
-            "am": activity or "00:01",
+            "bt": batt   or BATTERY_WARNING_THRESHOLD,
+            "ed": ending or ENDING_SOON_DAYS,
             "pd": PAST_DAYS,
         }

@@ -10,7 +10,7 @@ def create_layout():
         dcc.Store(id="store-creds",          storage_type="session"),
         dcc.Store(id="store-seuils",         data={"bt": BATTERY_WARNING_THRESHOLD,
                                                     "ed": ENDING_SOON_DAYS,
-                                                    "am": "00:01", "pd": PAST_DAYS}),
+                                                    "pd": PAST_DAYS}),
         dcc.Store(id="store-ver",            data={"v": 0, "email": ""}),
         dcc.Store(id="store-filtre-proj",    data="Tous"),
         dcc.Store(id="store-filtre-type",    data="Tous"),
@@ -40,17 +40,22 @@ def create_layout():
         # ── Page layout ───────────────────────────────────────────────────────
         html.Div([
 
-            # ── SMSI Header ───────────────────────────────────────────────────
+            # ── SIEM Header ───────────────────────────────────────────────────
             html.Header([
 
                 # Title row
                 html.Div([
                     html.Div([
-                        html.H1("Tableau de bord opérationnel UNIFIELD — CAD.42",
-                                className="smsi-title"),
-                        html.P("Console SMSI · CAD.42 Services SAS · ISO 27001:2022",
-                               className="smsi-subtitle"),
-                    ], className="smsi-title-block"),
+                        html.Div([
+                            html.H1("Tableau de bord opérationnel UNIFIELD",
+                                    className="siem-title"),
+                            html.Button("ℹ", id="btn-open-doc", n_clicks=0,
+                                        className="btn-doc-info",
+                                        title="Documentation"),
+                        ], style={"display": "flex", "alignItems": "center", "gap": "10px"}),
+                        html.P("CAD.42 Services · ISO 27001:2022",
+                               className="siem-subtitle"),
+                    ], className="siem-title-block"),
 
                     # Session metadata + controls
                     html.Div([
@@ -59,8 +64,8 @@ def create_layout():
                         html.Span(id="header-conn-status",  className="header-meta-item"),
                         html.Button("Actualiser", id="btn-refresh", n_clicks=0,
                                     className="btn-refresh"),
-                    ], className="smsi-meta-row"),
-                ], className="smsi-header-top"),
+                    ], className="siem-meta-row"),
+                ], className="siem-header-top"),
 
                 # KPI row
                 html.Div(id="kpi-row", className="kpi-grid"),
@@ -71,17 +76,17 @@ def create_layout():
                     html.Button("Dispositifs",        id="btn-tab-dispositifs", n_clicks=0, className="tab-btn"),
                     html.Button("Projets",            id="btn-tab-projets",     n_clicks=0, className="tab-btn"),
                     html.Button("Gestion des Alertes", id="btn-tab-alertes",   n_clicks=0, className="tab-btn"),
-                ], className="smsi-tab-bar"),
+                ], className="siem-tab-bar"),
 
-            ], className="smsi-header"),
+            ], className="siem-header"),
 
             # ── Tab content ───────────────────────────────────────────────────
             html.Main(
                 html.Div(id="tab-content"),
-                className="smsi-main",
+                className="siem-main",
             ),
 
-        ], className="smsi-page"),
+        ], className="siem-page"),
 
         html.Div(id="modal-container"),
         html.Div(id="scroll-trigger", style={"display": "none"}),

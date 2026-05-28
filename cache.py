@@ -62,6 +62,37 @@ def invalidate(_email=None, _key=None):  # noqa: ARG001
         _shared_cache.pop(_CACHE_KEY, None)
 
 
+def _load_alert_history() -> list[dict]:
+    """Charge les 50 dernières entrées alert_history (lecture seule, snapshot).
+
+    Retourne une liste de dicts prêts à afficher dans DataTable.
+    Toute erreur est silencieusement loggée — ne doit jamais bloquer le refresh.
+    """
+    try:
+        from api.mongo_client import get_db
+        from datetime import timezone as _tz
+        db  = get_db()
+        raw = list(db["alert_history"].find(
+            {}, {"_id": 0, "ts": 1, "subject": 1, "issues_count": 1,
+                 "recipients": 1, "mailgun_status": 1}
+        ).sort("ts", -1).limit(50))
+        rows = []
+        for r in raw:
+            ts     = r.get("ts")
+            ts_str = ts.strftime("%d/%m/%Y %H:%M") if hasattr(ts, "strftime") else str(ts)
+            rows.append({
+                "Date/Heure":     ts_str,
+                "Sujet":          r.get("subject", ""),
+                "Nb problèmes":   r.get("issues_count", 0),
+                "Destinataires":  ", ".join(r.get("recipients", [])),
+                "Statut Mailgun": r.get("mailgun_status", ""),
+            })
+        return rows
+    except Exception as exc:
+        log.warning('{"event": "alert_history_load_failed", "detail": "%s"}', str(exc)[:120])
+        return []
+
+
 def _save_snapshot(data: dict) -> None:
     """Write an aggregate snapshot document to MongoDB (one per project + one global).
 
@@ -106,6 +137,7 @@ def _do_refresh(_email=None, _key=None):  # noqa: ARG001
         _shared_cache[_CACHE_KEY]["error"]   = None
     try:
         data = _load_all_data()
+        data["alert_history"] = _load_alert_history()
 
         with _cache_lock:
             _shared_cache[_CACHE_KEY]["data"]          = data

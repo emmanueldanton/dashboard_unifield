@@ -6,28 +6,9 @@ from ui.components import section_label, banner
 
 
 def render_alertes(data):
-    try:
-        from api.mongo_client import get_db
-        db  = get_db()
-        raw = list(db["alert_history"].find(
-            {}, {"_id": 0, "ts": 1, "subject": 1, "issues_count": 1,
-                 "recipients": 1, "mailgun_status": 1}
-        ).sort("ts", -1).limit(50))
-        rows = []
-        for r in raw:
-            ts = r.get("ts")
-            ts_str = ts.strftime("%d/%m/%Y %H:%M") if hasattr(ts, "strftime") else str(ts)
-            rows.append({
-                "Date/Heure":    ts_str,
-                "Sujet":         r.get("subject", ""),
-                "Nb problèmes":  r.get("issues_count", 0),
-                "Destinataires": ", ".join(r.get("recipients", [])),
-                "Statut Mailgun": r.get("mailgun_status", ""),
-            })
-        nb_alerts = len(rows)
-    except Exception:
-        rows      = []
-        nb_alerts = 0
+    # alert_history chargé par cache._load_alert_history() à chaque refresh (0 requête Mongo ici)
+    rows      = data.get("alert_history", [])
+    nb_alerts = len(rows)
 
     table_el = (
         html.Div(
@@ -80,16 +61,6 @@ def render_alertes(data):
                 type="number",
                 value=ENDING_SOON_DAYS,
                 step=1, min=1, max=365,
-                debounce=True,
-                className="sb-input",
-            ),
-        ], style={"flex": "1"}),
-        html.Div([
-            html.Label("Activité depuis", className="filter-label"),
-            dcc.Input(
-                id="seuil-activity",
-                type="time",
-                value="00:01",
                 debounce=True,
                 className="sb-input",
             ),

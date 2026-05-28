@@ -42,15 +42,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── SMSI Page ── */
-.smsi-page {
+/* ── SIEM Page ── */
+.siem-page {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* ── SMSI Header (fixed) ── */
-.smsi-header {
+/* ── SIEM Header (fixed) ── */
+.siem-header {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -59,7 +59,7 @@ body {
   padding: 14px 24px 0;
 }
 
-.smsi-header-top {
+.siem-header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -68,7 +68,7 @@ body {
   gap: 12px;
 }
 
-.smsi-title {
+.siem-title {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--accent);
@@ -76,7 +76,30 @@ body {
   margin: 0;
 }
 
-.smsi-subtitle {
+.btn-doc-info {
+  background: transparent;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.btn-doc-info:hover {
+  background: var(--accent-bg);
+}
+
+.siem-subtitle {
   font-size: 0.65rem;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -84,9 +107,9 @@ body {
   margin-top: 2px;
 }
 
-.smsi-title-block { flex: 1; min-width: 240px; }
+.siem-title-block { flex: 1; min-width: 240px; }
 
-.smsi-meta-row {
+.siem-meta-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -184,7 +207,7 @@ body {
 }
 
 /* ── Tab navigation ── */
-.smsi-tab-bar {
+.siem-tab-bar {
   display: flex;
   gap: 2px;
   padding: 6px 0 0;
@@ -213,7 +236,7 @@ body {
 }
 
 /* ── Main content area ── */
-.smsi-main {
+.siem-main {
   flex: 1;
   padding: 28px 24px;
   overflow-y: auto;

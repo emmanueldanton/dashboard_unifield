@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 import dash
 from dash import html, Output, Input, State
 
-from config import C, PARIS_TZ, BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS
+from config import C, PARIS_TZ, BATTERY_WARNING_THRESHOLD, ENDING_SOON_DAYS, PAST_DAYS, ACTIVITY_WINDOW_SECONDS
 from cache import get_cached_data
 from business.trackers import (health_score, battery_status, fmt_local,
-                                fmt_date, fmt_tz, _msg)
+                                fmt_date, fmt_tz, _msg, score_class, score_label)
+from business.flags import compute_project_flags
 from business.segments import compute_segments
 from ui.components import section_label, make_table, build_tracker_rows
 
@@ -28,14 +29,12 @@ def register(app):
         if not data: return html.Div()
 
         if not seuils:
-            seuils = {"bt":BATTERY_WARNING_THRESHOLD,"ed":ENDING_SOON_DAYS,"am":"00:01"}
-        bt, ed, am = seuils["bt"], seuils["ed"], seuils.get("am","00:01")
-        now   = datetime.now(timezone.utc)
-        _pnow = now.astimezone(PARIS_TZ)
-        _rh, _rm = map(int, am.split(":"))
-        _act_sec = max(1, int((_pnow - _pnow.replace(hour=_rh, minute=_rm, second=0, microsecond=0)).total_seconds()))
+            seuils = {"bt": BATTERY_WARNING_THRESHOLD, "ed": ENDING_SOON_DAYS}
+        bt  = seuils.get("bt", BATTERY_WARNING_THRESHOLD)
+        ed  = seuils.get("ed", ENDING_SOON_DAYS)
+        now = datetime.now(timezone.utc)
         segs = compute_segments(data["projects"], data["project_data"],
-                                now, _act_sec, ed, PAST_DAYS)
+                                now, ACTIVITY_WINDOW_SECONDS, ed, PAST_DAYS)
 
         p = next((x for x in data["projects"] if x.get("id") == pid), None)
         if not p: return html.Div()
@@ -55,6 +54,29 @@ def register(app):
 
         last_seen = max((t.get("lastUpdate","") for t in trkrs), default="")
         last_str  = fmt_local(last_seen, pdata.get("timezone","UTC"))
+
+        flags = compute_project_flags(p, trkrs, now, bt)
+        d     = flags["details"]
+
+        _COLOR = {
+            "excellent": C["green"],  "good": C["accent"],
+            "medium":    C["orange"], "bad":  C["red"], "empty": C["text_light"],
+        }
+        _BG = {
+            "excellent": C["green_bg"],  "good": C["accent_bg"],
+            "medium":    C["orange_bg"], "bad":  C["red_bg"], "empty": C["bg"],
+        }
+        cls = score_class(score)
+
+        def flag_pill(label, count, color):
+            if not count:
+                return html.Span()
+            return html.Span(f"{label} {count}", style={
+                "background": color, "color": "#fff",
+                "fontSize": "0.68rem", "fontWeight": "700",
+                "padding": "3px 9px", "borderRadius": "20px",
+                "marginRight": "4px", "display": "inline-block",
+            })
 
         def fmt_schedule(schedule):
             if not schedule:
@@ -98,23 +120,65 @@ def register(app):
             ], className="modal-header"),
 
             html.Div([
-                stat("Statut",            statut),
-                stat("Score santé",       f"{score}%"),
-                stat("Capteurs",          len(trkrs)),
-                stat("Connectés",         conn),
-                stat("Déconnectés",       disc),
-                stat("Batt. faible",      bat_l),
+                stat("Statut",   statut),
+                stat("Type",     p.get("type", "—")),
+                stat("Ville",    p.get("city", "—") or "—"),
+                stat("Fuseau",   fmt_tz(pdata.get("timezone", "UTC"))),
+                stat("Délai offline", f"{delay}s"),
+                stat("Capteurs", len(trkrs)),
+                stat("Connectés", conn),
+                stat("Déconnectés", disc),
+                stat("Batt. faible", bat_l),
+                stat("Début",    fmt_date(p.get("startDate"))),
+                stat("Fin",      fmt_date(p.get("endDate"))),
                 stat("Dernière activité (Heure locale)", last_str),
-                stat("Début",             fmt_date(p.get("startDate"))),
-                stat("Fin",               fmt_date(p.get("endDate"))),
+
+                # Score avec barre visuelle
+                html.Div([
+                    html.Div("Score santé", className="modal-stat-label"),
+                    html.Div([
+                        html.Span(f"{score}%", style={
+                            "fontWeight": "700", "color": _COLOR[cls], "fontSize": "1.05rem",
+                        }),
+                        html.Span(f" — {score_label(score)}", style={
+                            "fontSize": "0.78rem", "color": C["text_muted"], "marginLeft": "6px",
+                        }),
+                        html.Div(className="score-track", style={"marginTop": "6px"}, children=[
+                            html.Div(className="score-fill",
+                                     style={"width": f"{score}%", "background": _COLOR[cls]}),
+                        ]),
+                    ]),
+                ], className="modal-stat", style={"gridColumn": "1 / -1"}),
+
+                # Alertes actives
+                html.Div([
+                    html.Div("Alertes", className="modal-stat-label"),
+                    html.Div([
+                        flag_pill("⚡ KO",           d["ko_count"],     C["red"])     if flags["capteur_ko"]       else html.Span(),
+                        flag_pill("🕐 Hors schedule", d["hors_count"],   C["orange"])  if flags["hors_schedule"]    else html.Span(),
+                        flag_pill("⚠ Inactif",       d["inactif_count"], "#B45309")   if flags["inactif_schedule"] else html.Span(),
+                        html.Span("Aucune alerte", style={"color": C["text_muted"], "fontSize": "0.78rem"})
+                            if not any([flags["capteur_ko"], flags["hors_schedule"], flags["inactif_schedule"]]) else html.Span(),
+                    ], className="modal-stat-value"),
+                ], className="modal-stat", style={"gridColumn": "1 / -1"}),
+
+                # Description
+                html.Div([
+                    html.Div("Description", className="modal-stat-label"),
+                    html.Div(p.get("description") or "—", className="modal-stat-value",
+                             style={"fontSize": "0.78rem", "lineHeight": "1.6"}),
+                ], className="modal-stat", style={"gridColumn": "1 / -1"}),
+
+                # Horaires
                 html.Div([
                     html.Div("Horaires", className="modal-stat-label"),
                     html.Div(
                         fmt_schedule(p.get("schedule", {})),
                         className="modal-stat-value",
-                        style={"fontSize":"0.78rem","lineHeight":"1.6","fontWeight":"500"}
+                        style={"fontSize": "0.78rem", "lineHeight": "1.6", "fontWeight": "500"},
                     ),
-                ], className="modal-stat", style={"gridColumn":"1 / -1"}),
+                ], className="modal-stat", style={"gridColumn": "1 / -1"}),
+
             ], className="modal-summary"),
 
             section_label(f"Capteurs — {len(trkrs)}"),
@@ -378,24 +442,24 @@ def register(app):
 
                 section("KPIs — Vue d'ensemble", [
                     ("Projets actifs",
-                    "Projets ayant au moins un capteur avec un lastUpdate récent depuis l'heure 'Activité depuis' configurée dans la sidebar. Calculé en heure de Paris."),
+                    "Projets dont au moins un dispositif a envoyé un lastUpdate dans les 60 dernières secondes précédant le dernier chargement MongoDB. Calculé à chaque cycle de refresh (15 min)."),
                     ("Fin imminente",
-                    "Projets dont la date de fin (endDate) est dans moins de X jours. X = seuil 'Fin imminente' de la sidebar (défaut : 30 jours)."),
+                    "Projets dont la date de fin (endDate) est dans moins de X jours. X = seuil 'Fin imminente' de l'onglet Alertes (défaut : 30 jours)."),
                     ("Projets terminés",
-                    "Projets dont la date de fin est dépassée mais qui ne sont pas encore archivés dans UNIFIELD."),
-                    ("Capteurs connectés",
-                    "Capteurs dont le lastUpdate est inférieur au délai offline du projet (offlineDelay, souvent 60s). Le pourcentage représente la santé globale du parc."),
+                    "Projets dont la date de fin est dépassée mais qui ne sont pas encore archivés dans MongoDB."),
+                    ("Dispositifs connectés",
+                    "Dispositifs dont le lastUpdate est inférieur au délai offline du projet (offlineDelay). Le pourcentage représente la santé globale du parc."),
                     ("Batterie faible",
-                    "Capteurs dont la tension (battery_volt) est sous le seuil configuré (défaut : 3.5V), ET ayant émis depuis l'heure 'Activité depuis'."),
+                    "Dispositifs connectés dont la tension (battery_volt) est sous le seuil configuré (défaut : 3.5V)."),
                 ]),
 
                 section("Urgences", [
                     ("Capteurs inactifs pendant horaire",
-                    "Capteurs déconnectés alors que : (1) le schedule du projet est actif en ce moment, (2) le capteur a émis aujourd'hui depuis 'Activité depuis', (3) le capteur a un peson fonctionnel (weight_status = ok)."),
+                    "Capteurs déconnectés alors que : (1) le schedule du projet est actif en ce moment, (2) le capteur était actif lors du dernier chargement MongoDB (lastUpdate < 60s), (3) le capteur a un peson fonctionnel (weight_status = ok)."),
                     ("Capteurs actifs hors horaire",
                     "Capteurs connectés ou ayant émis dans la dernière heure, alors que le schedule du projet indique que les équipements devraient être éteints."),
                     ("Batterie faible",
-                    "Même logique que le KPI — capteurs avec battery_volt < seuil ET actifs depuis 'Activité depuis'. Les capteurs perdus depuis plusieurs jours sont exclus."),
+                    "Même logique que le KPI — capteurs connectés avec battery_volt < seuil."),
                     ("Batterie inconnue",
                     "Capteurs dont le champ battery_volt est présent dans le message mais avec une valeur invalide ou absente."),
                     ("Peson inconnu",
@@ -413,30 +477,38 @@ def register(app):
                     ("Bon (55–79%)",      "La majorité des capteurs fonctionne correctement."),
                     ("Moyen (30–54%)",    "Plusieurs capteurs déconnectés ou batteries faibles."),
                     ("Critique (< 30%)",  "La majorité des capteurs est en anomalie."),
-                    ("Badges de flags",
-                    "🔋 X batt. faible = Nombre de capteurs avec batterie faible ayant émis depuis 'Activité depuis'. 🕐 Hors schedule = actifs hors horaire. ⚠ Inactif = silencieux pendant les heures prévues."),
+                    ("Où le score est visible",
+                    "La colonne 'Score santé' du tableau Projets est colorée selon ces seuils. Le détail complet (barre de progression + label) s'affiche dans le panneau de détail au clic sur une ligne."),
+                    ("Alertes dans le détail projet",
+                    "⚡ KO = capteur hors ligne (déconnecté). 🕐 Hors schedule = capteur actif en dehors des horaires définis. ⚠ Inactif = capteur silencieux pendant un horaire actif."),
                 ]),
 
                 section("Projets", [
+                    ("Filtre par défaut",
+                    "L'onglet s'ouvre sur les projets Actifs. Le filtre Statut peut être changé vers Tous, Inactifs, Fin imminente ou Récemment terminés."),
                     ("Actifs",
-                    "Signal depuis l'heure 'Activité depuis'. Fenêtre calculée depuis minuit heure de Paris si schedule défini."),
+                    "Au moins un dispositif avec lastUpdate < 60s lors du dernier chargement MongoDB."),
                     ("Inactifs",
-                    "Projets en cours mais sans signal depuis 'Activité depuis'."),
+                    "Projets en cours mais sans dispositif actif lors du dernier chargement MongoDB (aucun lastUpdate < 60s)."),
                     ("Fin imminente",
                     "endDate dans moins de X jours (seuil configurable)."),
                     ("Récemment terminés",
                     "endDate dépassée, non encore archivé. Hors du parc actif."),
+                    ("Panneau de détail",
+                    "Un clic sur une ligne ouvre le détail complet du projet : score santé avec barre visuelle, alertes actives (KO / hors schedule / inactif), capteurs, dates, fuseau horaire, horaires configurés, et tableau de tous les dispositifs du projet."),
                     ("Fuseau horaire",
                     "Détecté automatiquement via les coordonnées GPS du dernier lastTrack. Fallback sur UTC si aucun GPS disponible."),
                 ]),
 
-                section("Capteurs", [
+                section("Dispositifs", [
+                    ("Filtre par défaut",
+                    "L'onglet s'ouvre sur les dispositifs Connectés. Le filtre Connexion peut être changé vers Tous ou Déconnectés."),
+                    ("Panneau de détail",
+                    "Un clic sur une ligne ouvre le détail du dispositif : statut, dernière activité, batterie, peson, température, poids, GPS (lien Google Maps), et les 10 derniers events."),
                     ("Statut connecté",
-                    "lastUpdate du capteur inférieur au offlineDelay du projet (souvent 60 secondes)."),
+                    "lastUpdate du dispositif inférieur au offlineDelay du projet (souvent 60 secondes)."),
                     ("Dernière activité",
                     "lastUpdate converti en heure locale du projet (fuseau GPS détecté ou UTC)."),
-                    ("Allumage ce matin",
-                    "Premier event de type boot/connect/power_on détecté aujourd'hui pour ce capteur."),
                     ("Batterie (V)",
                     "Valeur battery_volt dans lastTrack.message."),
                     ("Peson batterie",
@@ -447,13 +519,11 @@ def register(app):
                     "Coordonnées lat/lon de lastTrack. Cliquable vers Google Maps."),
                 ]),
 
-                section("Paramètres de la sidebar", [
+                section("Paramètres (onglet Gestion des alertes)", [
                     ("Batterie faible (V)",
-                    "Seuil de tension en dessous duquel un capteur est considéré en batterie faible. Défaut : 3.5V."),
+                    "Seuil de tension en dessous duquel un dispositif est considéré en batterie faible. Défaut : 3.5V."),
                     ("Fin imminente (jours)",
                     "Nombre de jours avant la date de fin d'un projet pour déclencher l'alerte 'Fin imminente'. Défaut : 30 jours."),
-                    ("Activité depuis",
-                    "Heure de référence (heure de Paris) à partir de laquelle un capteur est considéré actif aujourd'hui. Défaut : 00:01. Exemple : 07:00 = seuls les capteurs ayant émis depuis 7h ce matin sont considérés actifs."),
                 ]),
 
             ], style={"overflowY": "auto", "maxHeight": "65vh", "padding": "0 4px"}),
