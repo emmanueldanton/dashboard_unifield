@@ -105,7 +105,7 @@ def register(app):
         State("store-creds", "data"),
     )
     def update_header_meta(_ver, mongo_ok, creds):
-        email = (creds or {}).get("email", "")
+        display_name = (creds or {}).get("display_name", "") or (creds or {}).get("email", "")
 
         last_ts = last_success_ts()
         if last_ts:
@@ -123,7 +123,7 @@ def register(app):
                 html.Span(className="dot-err"), " MongoDB hors ligne"
             ], className="conn-badge conn-err")
 
-        return refresh_label, conn_el, email
+        return refresh_label, conn_el, display_name
 
     # ── KPI row ───────────────────────────────────────────────────────────────
     @app.callback(

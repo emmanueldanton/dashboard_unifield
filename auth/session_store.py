@@ -12,10 +12,11 @@ def _hash(sid: str) -> str:
     return hashlib.sha256(sid.encode()).hexdigest()
 
 
-def create_session(email: str, role: str, access_token: str = "") -> str:
+def create_session(email: str, role: str, access_token: str = "", display_name: str = "") -> str:
     sid = secrets.token_urlsafe(32)
     _sessions[_hash(sid)] = {
         "email":        email,
+        "display_name": display_name or email,
         "role":         role,
         "access_token": access_token,
         "created_at":   time.time(),

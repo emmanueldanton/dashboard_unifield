@@ -59,11 +59,13 @@ def create_layout():
 
                     # Session metadata + controls
                     html.Div([
-                        html.Span(id="header-user-email",  className="header-meta-item"),
+                        html.Span(id="header-user-email",   className="header-meta-item"),
                         html.Span(id="header-last-refresh", className="header-meta-item"),
                         html.Span(id="header-conn-status",  className="header-meta-item"),
                         html.Button("Actualiser", id="btn-refresh", n_clicks=0,
                                     className="btn-refresh"),
+                        html.A("Se deconnecter", href="/unifield/auth/logout",
+                               className="btn-logout"),
                     ], className="siem-meta-row"),
                 ], className="siem-header-top"),
 

@@ -92,8 +92,9 @@ def complete():
             mimetype="text/html",
         )
 
-    email = user_info.get("email", "")
-    sid   = create_session(email, role, access_token=access_token)
+    email        = user_info.get("email", "")
+    display_name = (user_info.get("displayName") or user_info.get("name") or email)
+    sid          = create_session(email, role, access_token=access_token, display_name=display_name)
     log.info('{"event": "login", "user": "%s", "role": "%s"}', email, role)
     resp = redirect(config.BASE_PATH, code=302)
     set_cookie(resp, sid)

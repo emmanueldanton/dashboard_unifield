@@ -24,7 +24,7 @@ def register(app):
         bypass = config.UNIFIELD_DEV_AUTH_BYPASS and config.APP_ENV != "production"
         if bypass:
             register_creds()
-            return {"email": "dev@cad42.local", "role": "admin"}
+            return {"email": "dev@cad42.local", "role": "admin", "display_name": "Dev User"}
 
         try:
             from flask import request as flask_request
@@ -34,7 +34,11 @@ def register(app):
             session = get_session(sid) if sid else None
             if session:
                 register_creds()
-                return {"email": session["email"], "role": session["role"]}
+                return {
+                    "email":        session["email"],
+                    "display_name": session.get("display_name", session["email"]),
+                    "role":         session["role"],
+                }
         except Exception as exc:
             log.warning('{"event": "load_creds_error", "detail": "%s"}', str(exc)[:200])
 
