@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel - Supervision UNIFIELD</title>
+  <link rel="stylesheet" href="/sentinel/src/styles/z42.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-logo">Z42</span>
+      <span class="topbar-title">Sentinel</span>
+    </div>
+    <nav class="topbar-nav" role="navigation">
+      <button class="tab-btn" data-view="dashboard">Tableau de bord</button>
+      <button class="tab-btn" data-view="dispositifs">Dispositifs</button>
+      <button class="tab-btn" data-view="projets">Projets</button>
+      <button class="tab-btn" data-view="alertes">Alertes &amp; Règles</button>
+    </nav>
+    <div class="topbar-user">
+      <span id="header-user"></span>
+      <a href="/sentinel/auth/logout" class="btn-logout">Se deconnecter</a>
+    </div>
+  </header>
+
+  <main id="content" class="main-content">
+    <div class="loading">Chargement...</div>
+  </main>
+
+  <script type="module" src="/sentinel/src/main.js"></script>
+</body>
+</html>
