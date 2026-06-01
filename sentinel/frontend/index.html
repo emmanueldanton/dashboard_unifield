@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sentinel - Supervision UNIFIELD</title>
-  <link rel="stylesheet" href="/sentinel/src/styles/z42.css" />
 </head>
 <body>
   <header class="topbar">
@@ -19,15 +18,21 @@
       <button class="tab-btn" data-view="alertes">Alertes &amp; Règles</button>
     </nav>
     <div class="topbar-user">
+      <span id="header-status" class="conn-badge" title="État de la source de données"></span>
+      <span id="header-updated" class="header-updated"></span>
+      <button id="btn-refresh" class="btn-refresh" title="Recharger les données depuis MongoDB">↺ Actualiser</button>
       <span id="header-user"></span>
       <a href="/sentinel/auth/logout" class="btn-logout">Se deconnecter</a>
     </div>
   </header>
 
   <main id="content" class="main-content">
-    <div class="loading">Chargement...</div>
+    <div id="view-dashboard"   class="view-pane"></div>
+    <div id="view-dispositifs" class="view-pane" hidden></div>
+    <div id="view-projets"     class="view-pane" hidden></div>
+    <div id="view-alertes"     class="view-pane" hidden></div>
   </main>
 
-  <script type="module" src="/sentinel/src/main.js"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 'use strict';
 const { Router } = require('express');
-const { getDb } = require('../db/mongo');
+const { getSentinelDb } = require('../db/mongo');
 const { getSchedulerState } = require('../scheduler/index');
 
 const historyRouter = Router();
@@ -9,7 +9,7 @@ const statusRouter = Router();
 historyRouter.get('/', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '50', 10), 50);
   try {
-    const db = await getDb();
+    const db = await getSentinelDb();
     const alerts = await db.collection('alert_history')
       .find({})
       .sort({ ts: -1 })
@@ -25,7 +25,7 @@ historyRouter.get('/', async (req, res) => {
 statusRouter.get('/', async (req, res) => {
   try {
     const { isRunning, lastCycle, nextCycle } = getSchedulerState();
-    const db = await getDb();
+    const db = await getSentinelDb();
     // Count alerts from last cycle window
     const since = lastCycle ? new Date(new Date(lastCycle) - 10 * 60 * 1000) : new Date(0);
     const activeAlerts = await db.collection('alert_history').countDocuments({ ts: { $gte: since } });

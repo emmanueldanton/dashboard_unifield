@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isConnected, batteryVolt, batteryStatus, lastSeenSeconds, healthScore } = require('./trackers');
+const { isConnected, batteryVolt, batteryStatus, weightStatus, lastSeenSeconds, healthScore } = require('./trackers');
 
 test('isConnected retourne false si lastUpdate est null', () => {
   assert.equal(isConnected({ lastUpdate: null }), false);
@@ -46,13 +46,29 @@ test('batteryStatus retourne "inconnu" si battery_volt absent', () => {
   assert.equal(batteryStatus({}), 'inconnu');
 });
 
+test('weightStatus retourne "ok" si weight present et >= 0', () => {
+  assert.equal(weightStatus({ lastTrack: { message: { weight: 1200 } } }), 'ok');
+  assert.equal(weightStatus({ lastTrack: { message: { weight: 0 } } }), 'ok');
+});
+
+test('weightStatus retourne "inconnu" si weight absent ou negatif', () => {
+  assert.equal(weightStatus({}), 'inconnu');
+  assert.equal(weightStatus({ lastTrack: { message: {} } }), 'inconnu');
+  assert.equal(weightStatus({ lastTrack: { message: { weight: -1 } } }), 'inconnu');
+});
+
 test('healthScore retourne 0 pour un tableau vide', () => {
   assert.equal(healthScore([]), 0);
 });
 
-test('healthScore retourne 100 pour un tracker parfaitement connecte avec bonne batterie', () => {
+test('healthScore = 80 si connecte + batterie ok mais peson absent (iso-Python)', () => {
   const recent = new Date(Date.now() - 5 * 1000).toISOString();
   const t = { lastUpdate: recent, lastTrack: { message: { battery_volt: 4.0 } } };
-  const score = healthScore([t]);
-  assert.ok(score > 90, `Score attendu > 90, obtenu ${score}`);
+  assert.equal(healthScore([t]), 80);
+});
+
+test('healthScore retourne 100 pour un tracker connecte, batterie ok et peson present', () => {
+  const recent = new Date(Date.now() - 5 * 1000).toISOString();
+  const t = { lastUpdate: recent, lastTrack: { message: { battery_volt: 4.0, weight: 1200 } } };
+  assert.equal(healthScore([t]), 100);
 });

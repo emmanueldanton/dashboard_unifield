@@ -1,6 +1,6 @@
 'use strict';
 const { Router } = require('express');
-const { getDb } = require('../db/mongo');
+const { getSentinelDb } = require('../db/mongo');
 const { DEFAULT_RULES } = require('../scheduler/rules');
 const { ObjectId } = require('mongodb');
 
@@ -10,7 +10,7 @@ const MUTABLE_FIELDS = new Set(['threshold', 'severity', 'enabled', 'description
 
 router.get('/', async (req, res) => {
   try {
-    const db = await getDb();
+    const db = await getSentinelDb();
     const rules = await db.collection('alert_rules').find({}).toArray();
     if (rules.length > 0) return res.json({ rules, source: 'db' });
     res.json({ rules: DEFAULT_RULES, source: 'default' });
@@ -41,7 +41,7 @@ router.put('/:id', async (req, res) => {
   }
 
   try {
-    const db = await getDb();
+    const db = await getSentinelDb();
     const result = await db.collection('alert_rules').findOneAndUpdate(
       { _id: oid },
       { $set: update },

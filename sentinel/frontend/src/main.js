@@ -1,5 +1,6 @@
+import './styles/z42.css';
 import { fetchApi } from './api.js';
-import { renderDashboard } from './views/dashboard.js';
+import { renderDashboard, refreshDashboard } from './views/dashboard.js';
 import { renderDispositifs } from './views/dispositifs.js';
 import { renderProjets } from './views/projets.js';
 import { renderAlertes } from './views/alertes.js';
@@ -8,11 +9,15 @@ let currentView = 'dashboard';
 let refreshTimer = null;
 let currentUser = null;
 
+// Vues déjà rendues — on ne re-fetche pas si le DOM est déjà là.
+// rendered.clear() + navigate() force un re-rendu complet (ex. : bouton Actualiser).
+const rendered = new Set();
+
 const VIEWS = {
-  dashboard: renderDashboard,
+  dashboard:   renderDashboard,
   dispositifs: renderDispositifs,
-  projets: renderProjets,
-  alertes: renderAlertes,
+  projets:     renderProjets,
+  alertes:     renderAlertes,
 };
 
 document.addEventListener('sentinel:unauthorized', () => {
@@ -20,9 +25,41 @@ document.addEventListener('sentinel:unauthorized', () => {
 });
 
 document.addEventListener('sentinel:forbidden', () => {
-  document.getElementById('content').innerHTML =
-    '<div class="error-state">Acces refuse - role insuffisant pour acceder a cette ressource.</div>';
+  document.querySelectorAll('.view-pane').forEach(p => { p.hidden = true; });
+  const pane = document.getElementById('view-dashboard');
+  if (pane) {
+    pane.hidden = false;
+    pane.innerHTML = '<div class="error-state">Acces refuse — role insuffisant pour acceder a cette ressource.</div>';
+  }
 });
+
+function fmtUpdated(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function refreshStatus() {
+  const badge = document.getElementById('header-status');
+  const updated = document.getElementById('header-updated');
+  if (!badge) return;
+  try {
+    const s = await fetchApi('/sentinel/api/status');
+    if (s.mongoOk) {
+      badge.className = 'conn-badge conn-ok';
+      badge.innerHTML = '<span class="dot-live"></span> MongoDB OK';
+    } else {
+      badge.className = 'conn-badge conn-err';
+      badge.innerHTML = '<span class="dot-err"></span> MongoDB hors ligne';
+    }
+    if (updated) updated.textContent = s.loadedAt ? `Dernière MAJ : ${fmtUpdated(s.loadedAt)}` : 'Aucune donnée chargée';
+  } catch {
+    badge.className = 'conn-badge conn-err';
+    badge.innerHTML = '<span class="dot-err"></span> MongoDB hors ligne';
+    if (updated) updated.textContent = '';
+  }
+}
 
 async function checkAuth() {
   try {
@@ -35,8 +72,8 @@ async function checkAuth() {
     if (err.status === 401) {
       window.location.href = '/sentinel/auth/login';
     } else if (err.status === 403) {
-      document.getElementById('content').innerHTML =
-        '<div class="error-state">Acces refuse - aucun role Sentinel valide.</div>';
+      const pane = document.getElementById('view-dashboard');
+      if (pane) pane.innerHTML = '<div class="error-state">Acces refuse — aucun role Sentinel valide.</div>';
     }
     throw err;
   }
@@ -53,19 +90,30 @@ async function navigate(view) {
   setActiveTab(view);
   clearInterval(refreshTimer);
 
-  const content = document.getElementById('content');
-  content.innerHTML = '<div class="loading">Chargement...</div>';
+  // Bascule la visibilité — pas de destruction DOM
+  document.querySelectorAll('.view-pane').forEach(pane => {
+    pane.hidden = (pane.id !== `view-${view}`);
+  });
 
-  try {
-    await VIEWS[view](content, currentUser);
-  } catch (err) {
-    if (err.code !== 'UNAUTHORIZED' && err.code !== 'FORBIDDEN') {
-      content.innerHTML = `<div class="error-state">Erreur: ${err.message}</div>`;
+  const pane = document.getElementById(`view-${view}`);
+
+  // Ne re-fetche que si la vue n'a jamais été rendue (ou a été invalidée)
+  if (!rendered.has(view)) {
+    pane.innerHTML = '<div class="loading">Chargement...</div>';
+    try {
+      await VIEWS[view](pane, currentUser);
+      rendered.add(view);
+    } catch (err) {
+      rendered.delete(view);
+      if (err.code !== 'UNAUTHORIZED' && err.code !== 'FORBIDDEN') {
+        pane.innerHTML = `<div class="error-state">Erreur : ${err.message}</div>`;
+      }
     }
   }
 
   if (view === 'dashboard') {
-    refreshTimer = setInterval(() => navigate('dashboard'), 30000);
+    // Rafraichissement léger toutes les 30 s (sans reconstruction DOM)
+    refreshTimer = setInterval(refreshDashboard, 30000);
   }
 }
 
@@ -73,13 +121,35 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => navigate(btn.dataset.view));
 });
 
+const btnRefresh = document.getElementById('btn-refresh');
+if (btnRefresh) {
+  btnRefresh.addEventListener('click', async () => {
+    if (btnRefresh.disabled) return;
+    btnRefresh.disabled = true;
+    btnRefresh.textContent = '↺ Actualisation…';
+    try {
+      await fetchApi('/sentinel/api/cache/refresh', { method: 'POST' });
+      rendered.clear(); // invalide toutes les vues — elles re-fetcheront à la prochaine visite
+      await refreshStatus();
+      await navigate(currentView); // re-rend immédiatement la vue courante
+    } catch {
+      // erreur déjà affichée par fetchApi ou navigate
+    } finally {
+      btnRefresh.disabled = false;
+      btnRefresh.textContent = '↺ Actualiser';
+    }
+  });
+}
+
 (async function init() {
   try {
     await checkAuth();
+    refreshStatus();
+    setInterval(refreshStatus, 30000);
     const hash = location.hash.replace('#', '') || 'dashboard';
     const view = VIEWS[hash] ? hash : 'dashboard';
     await navigate(view);
   } catch {
-    // auth redirect or error display already handled
+    // redirect ou affichage d'erreur déjà gérés dans checkAuth
   }
 })();

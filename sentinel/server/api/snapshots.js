@@ -1,6 +1,6 @@
 'use strict';
 const { Router } = require('express');
-const { getDb } = require('../db/mongo');
+const { getSentinelDb } = require('../db/mongo');
 const { ObjectId } = require('mongodb');
 
 const router = Router();
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const db = await getDb();
+    const db = await getSentinelDb();
     const snapshots = await db.collection('snapshots')
       .find(filter, { projection: { _id: 0, ts: 1, connected: 1, disconnected: 1, battery_low: 1, project: 1 } })
       .sort({ ts: 1 })

@@ -1,7 +1,6 @@
 'use strict';
 const { Router } = require('express');
-const { getDb } = require('../db/mongo');
-const { loadAllData } = require('../db/loader');
+const { getData } = require('../db/cache');
 const { healthScore } = require('../lib/trackers');
 const { projectStatus } = require('../lib/segments');
 const { ObjectId } = require('mongodb');
@@ -9,11 +8,15 @@ const { ObjectId } = require('mongodb');
 const router = Router();
 
 function enrichProject(project, allTrackers) {
-  const projectTrackers = allTrackers.filter(t => t._projectId === project._id.toString());
+  // Le loader retourne project.id (string dbname) - pas project._id
+  const pid = (project.id || project._id || '').toString();
+  const projectTrackers = allTrackers.filter(t =>
+    t._projectId === pid || t._project_id === pid
+  );
   return {
-    _id: project._id,
+    _id: pid,
     name: project.name,
-    code: project.code,
+    code: project.code || '',
     startDate: project.startDate || null,
     endDate: project.endDate || null,
     archived: project.archived || false,
@@ -25,8 +28,9 @@ function enrichProject(project, allTrackers) {
 
 router.get('/', async (req, res) => {
   try {
-    const db = await getDb();
-    const { projects, trackers } = await loadAllData(db);
+    const cached = await getData();
+    if (!cached) return res.status(503).json({ error: 'Service indisponible', code: 'SERVICE_UNAVAILABLE' });
+    const { projects, trackers } = cached;
     const enriched = projects.map(p => enrichProject(p, trackers));
     res.json({ projects: enriched });
   } catch (err) {
@@ -35,18 +39,21 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-  let oid;
-  try { oid = new ObjectId(req.params.id); } catch {
-    return res.status(404).json({ error: 'Projet non trouve', code: 'NOT_FOUND' });
-  }
+  const reqId = req.params.id;
 
   try {
-    const db = await getDb();
-    const { projects, trackers } = await loadAllData(db);
-    const project = projects.find(p => p._id.toString() === oid.toString());
+    const cached = await getData();
+    if (!cached) return res.status(503).json({ error: 'Service indisponible', code: 'SERVICE_UNAVAILABLE' });
+    const { projects, trackers } = cached;
+    const project = projects.find(p =>
+      (p.id || p._id || '').toString() === reqId
+    );
     if (!project) return res.status(404).json({ error: 'Projet non trouve', code: 'NOT_FOUND' });
 
-    const projectTrackers = trackers.filter(t => t._projectId === oid.toString()).map(t => ({
+    const pid = (project.id || project._id || '').toString();
+    const projectTrackers = trackers.filter(t =>
+      t._projectId === pid || t._project_id === pid
+    ).map(t => ({
       _id: t._id,
       name: t.name,
       _isConnected: t._isConnected,

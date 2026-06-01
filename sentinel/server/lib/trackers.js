@@ -23,19 +23,23 @@ function batteryStatus(tracker, threshold = 3.5) {
   return volt < threshold ? 'faible' : 'ok';
 }
 
+// Port exact de business/trackers.py weight_status : peson present (weight >= 0).
+function weightStatus(tracker) {
+  const w = tracker.lastTrack?.message?.weight;
+  if (w === undefined || w === null || w < 0) return 'inconnu';
+  return 'ok';
+}
+
+// Port exact de business/trackers.py health_score :
+// somme par tracker (50 connexion + 30 batterie ok + 20 peson present),
+// moyenne sur le nombre de trackers, arrondie une seule fois.
 function healthScore(trackers, offlineDelay = 60, threshold = 3.5) {
   if (!trackers || trackers.length === 0) return 0;
-  const connected = trackers.filter(t => isConnected(t, offlineDelay)).length;
-  const battOk = trackers.filter(t => batteryStatus(t, threshold) === 'ok').length;
-  const connScore = Math.round((connected / trackers.length) * 50);
-  const battScore = Math.round((battOk / trackers.length) * 30);
-  // signal score: proxy - trackers seen in last 5 minutes
-  const recent = trackers.filter(t => {
-    const s = lastSeenSeconds(t);
-    return s >= 0 && s < 300;
-  }).length;
-  const signalScore = Math.round((recent / trackers.length) * 20);
-  return connScore + battScore + signalScore;
+  const total = trackers.reduce((acc, t) =>
+    acc + (isConnected(t, offlineDelay) ? 50 : 0)
+        + (batteryStatus(t, threshold) === 'ok' ? 30 : 0)
+        + (weightStatus(t) === 'ok' ? 20 : 0), 0);
+  return Math.round(total / trackers.length);
 }
 
 function enrichTracker(t, offlineDelay = 60, threshold = 3.5) {
@@ -46,4 +50,4 @@ function enrichTracker(t, offlineDelay = 60, threshold = 3.5) {
   t._healthScore = healthScore([t], offlineDelay, threshold);
 }
 
-module.exports = { isConnected, batteryVolt, batteryStatus, lastSeenSeconds, healthScore, enrichTracker };
+module.exports = { isConnected, batteryVolt, batteryStatus, weightStatus, lastSeenSeconds, healthScore, enrichTracker };

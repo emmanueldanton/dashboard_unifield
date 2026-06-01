@@ -1,5 +1,5 @@
 'use strict';
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const path = require('path');
 const express = require('express');
@@ -59,7 +59,10 @@ app.use(`${BASE}`, (req, res, next) => {
 });
 
 // API routers (mounted after guard)
+app.use(`${BASE}/api/cache`, require('./api/cache'));
+app.use(`${BASE}/api/status`, require('./api/status'));
 app.use(`${BASE}/api/kpis`, require('./api/kpis'));
+app.use(`${BASE}/api/urgences`, require('./api/urgences'));
 app.use(`${BASE}/api/snapshots`, require('./api/snapshots'));
 app.use(`${BASE}/api/trackers`, require('./api/trackers'));
 app.use(`${BASE}/api/projects`, require('./api/projects'));
@@ -79,9 +82,13 @@ app.get(`${BASE}/*`, (_req, res) => {
 async function start() {
   const { getDb } = require('./db/mongo');
   const { startScheduler } = require('./scheduler/index');
+  const { startCache } = require('./db/cache');
 
   try {
     const db = await getDb();
+    // Precharge le cache MongoDB avant toute connexion utilisateur, puis rafraichit
+    // periodiquement (CACHE_REFRESH_SEC). Les endpoints lisent ce cache memoire.
+    startCache();
     startScheduler(db);
   } catch (err) {
     console.error(JSON.stringify({ ts: new Date().toISOString(), event: 'startup_db_error', detail: err.message }));

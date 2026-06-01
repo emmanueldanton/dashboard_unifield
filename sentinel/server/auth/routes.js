@@ -56,6 +56,9 @@ router.get('/logout', async (req, res) => {
 });
 
 router.get('/me', (req, res) => {
+  if (process.env.SENTINEL_DEV_AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
+    return res.json({ email: 'dev@cad42.local', displayName: 'Dev User', role: 'app:sentinel:admin' });
+  }
   const sid = getCookie(req);
   const session = getSession(sid);
   if (!session) return res.status(401).json({ error: 'Session requise', code: 'UNAUTHORIZED' });

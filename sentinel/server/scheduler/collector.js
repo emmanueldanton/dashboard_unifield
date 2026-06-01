@@ -1,33 +1,42 @@
 'use strict';
 const { loadAllData } = require('../db/loader');
+const { filterData } = require('../lib/flags');
+const { getSentinelDb } = require('../db/mongo');
 const { saveSnapshot } = require('./snapshots');
 const { loadRulesFromDb } = require('./rules');
 const { evaluate, diff } = require('./engine');
 const { sendAlert, writeHistory } = require('./mailer');
 
-async function runCycle(db, previousState) {
+async function runCycle(_db, previousState) {
   const ts = new Date().toISOString();
   console.log(JSON.stringify({ ts, event: 'cycle_start' }));
   const start = Date.now();
 
   try {
-    const { projects, trackers, loaded_at } = await loadAllData(db);
+    const sdb = await getSentinelDb();
+    // filter_data : ne traiter que les trackers reels (parasites + sans donnees exclus),
+    // comme le pipeline Python. Evite des milliers de fausses alertes.
+    const { trackers } = filterData(await loadAllData());
 
     const connected = trackers.filter(t => t._isConnected).length;
     const disconnected = trackers.length - connected;
     const battery_low = trackers.filter(t => t._batteryStatus === 'faible').length;
 
-    await saveSnapshot(db, { connected, disconnected, battery_low, project: null });
-    console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'snapshot_saved' }));
+    try {
+      await saveSnapshot(sdb, { connected, disconnected, battery_low, project: null });
+      console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'snapshot_saved' }));
+    } catch (snapErr) {
+      console.warn(JSON.stringify({ ts: new Date().toISOString(), event: 'snapshot_skip', detail: snapErr.message }));
+    }
 
-    const { rules } = await loadRulesFromDb(db);
+    const { rules } = await loadRulesFromDb(sdb);
     const currentAlerts = evaluate(trackers, rules);
     const { newAlerts, resolved } = diff(previousState, currentAlerts);
 
     if (newAlerts.length > 0) {
       await Promise.all([
         sendAlert(newAlerts),
-        writeHistory(db, newAlerts),
+        writeHistory(sdb, newAlerts),
       ]);
       const byProject = {};
       for (const a of newAlerts) {

@@ -20,6 +20,10 @@ function evaluate(trackers, rules) {
       if (!rule.enabled) continue;
       const value = tracker[rule.field];
       if (value === undefined || value === null) continue;
+      // Valeurs sentinelles "donnee absente" (-1) : batterie inconnue ou tracker
+      // jamais vu ne doivent PAS declencher d'alerte (semantique business/*.py :
+      // battery_status 'inconnu' ignore, offline exige last_seen_seconds >= 0).
+      if ((rule.field === '_batteryVolt' || rule.field === '_lastSeenSeconds') && value < 0) continue;
       if (compare(value, rule.operator, rule.threshold)) {
         alerts.push({
           trackerId: tracker._id.toString(),
