@@ -1,8 +1,8 @@
 import './styles/z42.css';
 import { fetchApi } from './api.js';
 import { renderDashboard, refreshDashboard } from './views/dashboard.js';
-import { renderDispositifs } from './views/dispositifs.js';
-import { renderProjets } from './views/projets.js';
+import { renderDispositifs, applyFilter as filterDispositifs } from './views/dispositifs.js';
+import { renderProjets, applyFilter as filterProjets } from './views/projets.js';
 import { renderAlertes } from './views/alertes.js';
 
 let currentView = 'dashboard';
@@ -119,6 +119,13 @@ async function navigate(view) {
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => navigate(btn.dataset.view));
+});
+
+// KPI cliquable → navigation avec filtre pré-appliqué
+const viewFilters = { dispositifs: filterDispositifs, projets: filterProjets };
+document.addEventListener('sentinel:navigate', async ({ detail: { view, filter } = {} }) => {
+  if (filter && viewFilters[view]) viewFilters[view](filter);
+  await navigate(view);
 });
 
 const btnRefresh = document.getElementById('btn-refresh');

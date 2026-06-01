@@ -1,11 +1,23 @@
 import { fetchApi } from '../api.js';
 
-function kpiCard(label, value, sub = '', mod = '') {
-  return `<div class="kpi-card ${mod}">
+function kpiCard(label, value, sub = '', mod = '', nav = null) {
+  const navAttr = nav ? ` data-nav='${JSON.stringify(nav)}'` : '';
+  return `<div class="kpi-card ${mod}"${navAttr}>
     <div class="kpi-label">${label}</div>
     <div class="kpi-value">${value}</div>
     ${sub ? `<div class="kpi-sub" style="font-size:12px;color:var(--text-muted);margin-top:6px">${sub}</div>` : ''}
   </div>`;
+}
+
+function bindKpiNav(container) {
+  container.querySelectorAll('.kpi-card[data-nav]').forEach(card => {
+    card.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('sentinel:navigate', {
+        bubbles: true,
+        detail: JSON.parse(card.dataset.nav),
+      }));
+    });
+  });
 }
 
 function connColor(pct) {
@@ -108,19 +120,24 @@ function kpiGridHtml(kpis) {
   return `
     ${kpiCard('Projets actifs', kpis.activeProjects,
       `lastUpdate &lt; ${kpis.activityWindowSeconds}s au dernier chargement · ${kpis.totalProjects} projets en cours`,
-      kpis.activeProjects > 0 ? 'accent' : '')}
+      kpis.activeProjects > 0 ? 'accent' : '',
+      { view: 'projets', filter: { status: 'actif' } })}
     ${kpiCard('Fin imminente', kpis.endingProjects,
       `Dans les ${kpis.endingDays} prochains jours`,
-      kpis.endingProjects > 0 ? 'warning' : '')}
+      kpis.endingProjects > 0 ? 'warning' : '',
+      { view: 'projets', filter: { status: 'se_terminant' } })}
     ${kpiCard('Projets terminés', kpis.pastProjects,
       'endDate dépassée, non archivés',
-      kpis.pastProjects > 0 ? 'warning' : '')}
+      kpis.pastProjects > 0 ? 'warning' : '',
+      { view: 'projets', filter: { status: 'termine' } })}
     ${kpiCard('Dispositifs connectés', kpis.connected,
       `${kpis.connectedPct}% du parc · ${kpis.totalTrackers} au total`,
-      connColor(kpis.connectedPct))}
+      connColor(kpis.connectedPct),
+      { view: 'dispositifs', filter: { status: 'connected' } })}
     ${kpiCard('Batterie faible', kpis.batteryLow,
       `Seuil &lt; ${kpis.batteryThreshold}V`,
-      kpis.batteryLow > 0 ? 'warning' : '')}`;
+      kpis.batteryLow > 0 ? 'warning' : '',
+      { view: 'dispositifs', filter: { battery: 'faible' } })}`;
 }
 
 // Met a jour la zone urgences en preservant les sections <details> ouvertes.
@@ -178,4 +195,6 @@ export async function renderDashboard(container) {
       Dernière mise à jour : ${fmtUpdated(kpis.loadedAt)}
     </div>
   `;
+
+  bindKpiNav(container);
 }

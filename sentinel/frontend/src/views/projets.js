@@ -108,6 +108,14 @@ function countByStatus(projects) {
   return c;
 }
 
+// ── Navigation externe (KPI cliquable → filtre pré-appliqué) ──────────────────
+
+export function applyFilter(status) {
+  if (status !== undefined) _filter = status;
+  const pane = document.getElementById('view-projets');
+  if (pane && pane.children.length) renderList(pane, applyFilters());
+}
+
 export async function renderProjets(container) {
   container.innerHTML = '<div class="loading">Chargement...</div>';
   const data = await fetchApi('/sentinel/api/projects');

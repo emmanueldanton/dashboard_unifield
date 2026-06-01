@@ -272,6 +272,16 @@ function closeDrawer(container) {
   container.querySelectorAll('#disp-tbody tr').forEach(tr => tr.classList.remove('row-selected'));
 }
 
+// ── Navigation externe (KPI cliquable → filtre pré-appliqué) ──────────────────
+
+export function applyFilter({ status, battery } = {}) {
+  if (status  !== undefined) state.status  = status;
+  if (battery !== undefined) state.battery = battery;
+  state.page = 1;
+  const pane = document.getElementById('view-dispositifs');
+  if (pane && pane.children.length) update(pane);
+}
+
 // ── Point d'entree ─────────────────────────────────────────────────────────────
 
 export async function renderDispositifs(container) {
