@@ -1,6 +1,11 @@
 'use strict';
 
 // Port exact de business/segments.py
+//
+// NOTE architecture cache : _last_seen_seconds est calculé au chargement du cache
+// (loader.js), en même temps que le snapshot MongoDB. On utilise CETTE valeur figée
+// et non un recalcul frais : le snapshot lui-même fige lastUpdate, donc comparer
+// Date.now() à un lastUpdate figé donnerait des valeurs erronées (→ 0 projet actif).
 
 const ENDING_SOON_DAYS = 7;
 
@@ -24,8 +29,6 @@ function isEnding(project, endingDays = ENDING_SOON_DAYS) {
 
 function projectStatus(project) {
   if (isArchived(project)) return 'archive';
-  // Le loader marque project.active = false si aucun tracker recent (30s)
-  // On garde le critere endDate comme critere "termine"
   if (!isActive(project)) return 'termine';
   if (isEnding(project)) return 'se_terminant';
   return 'actif';
@@ -33,10 +36,6 @@ function projectStatus(project) {
 
 // Port exact de business/segments.py -> compute_segments()
 // Classe les projets en buckets {archived, past, total, active, ending, anomalies}.
-// - active   : >=1 tracker vu il y a moins de `activitySec` secondes (signal)
-// - ending   : endDate dans le futur, strictement 0 < jours < endingDays
-// - past     : endDate depassee (endDiff > 0), non archive
-// - anomalies: projet "past" mais qui emet encore un signal (termine + actif)
 function computeSegments(projects, projectData, now, activitySec, endingDays, pastDays) {
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
 
@@ -51,7 +50,7 @@ function computeSegments(projects, projectData, now, activitySec, endingDays, pa
   const archived = [], past = [], total = [], active = [], ending = [], anomalies = [];
 
   for (const p of projects) {
-    const end = p.endDate;
+    const end   = p.endDate;
     const isArch = p.archived === true;
     let endDiff = null;
 

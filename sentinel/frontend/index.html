@@ -7,23 +7,36 @@
 </head>
 <body>
   <header class="topbar">
+
     <div class="topbar-brand">
       <span class="topbar-logo">Z42</span>
       <span class="topbar-title">Sentinel</span>
     </div>
+
     <nav class="topbar-nav" role="navigation">
       <button class="tab-btn" data-view="dashboard">Tableau de bord</button>
       <button class="tab-btn" data-view="dispositifs">Dispositifs</button>
       <button class="tab-btn" data-view="projets">Projets</button>
       <button class="tab-btn" data-view="alertes">Alertes &amp; Règles</button>
     </nav>
-    <div class="topbar-user">
-      <span id="header-status" class="conn-badge" title="État de la source de données"></span>
+
+    <div class="topbar-right">
       <span id="header-updated" class="header-updated"></span>
-      <button id="btn-refresh" class="btn-refresh" title="Recharger les données depuis MongoDB">↺ Actualiser</button>
-      <span id="header-user"></span>
-      <a href="/sentinel/auth/logout" class="btn-logout">Se deconnecter</a>
+      <span id="header-status" class="conn-badge" title="État de la source de données"></span>
+      <button id="btn-refresh" class="btn-refresh" title="Recharger les données depuis MongoDB">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Actualiser
+      </button>
+      <span id="header-user" class="topbar-username"></span>
+      <a href="/sentinel/auth/logout" class="btn-logout" title="Se déconnecter">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </a>
     </div>
+
   </header>
 
   <main id="content" class="main-content">

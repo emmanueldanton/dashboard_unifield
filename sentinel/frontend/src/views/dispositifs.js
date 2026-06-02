@@ -8,8 +8,8 @@ const state = {
   status: 'connected',   // all | connected | disconnected (defaut Python : Connectés)
   battery: 'all',        // all | ok | faible | inconnu
   projects: new Set(),   // vide = tous
-  sort: '_healthScore',
-  dir: 'desc',
+  sort: '_lastSeenSeconds',
+  dir: 'asc',
   page: 1,
   selected: null,
 };
@@ -222,6 +222,7 @@ async function openDrawer(container, id) {
       ${t._isConnected ? 'Connecté' : 'Déconnecté'} · ${formatSince(t._lastSeenSeconds)}
     </div>
     <div class="dw-grid">
+      ${statRow('UUID', `<span class="dw-uuid">${t._id}</span><button class="dw-copy" data-copy="${t._id}" title="Copier l'UUID">⎘</button>`)}
       ${statRow('Dernière activité (locale)', formatLocal(t.lastUpdate, t._projectTz))}
       ${statRow('Allumage ce matin', '<span id="dw-boot">…</span>')}
       ${statRow('Batterie', num(t._batteryVolt, ' V', 2))}
@@ -238,6 +239,13 @@ async function openDrawer(container, id) {
   drawer.classList.add('open');
   backdrop.classList.add('open');
   drawer.querySelector('#dw-close').addEventListener('click', () => closeDrawer(container));
+  drawer.querySelector('.dw-copy')?.addEventListener('click', async e => {
+    const val = e.currentTarget.dataset.copy;
+    await navigator.clipboard.writeText(val);
+    const btn = e.currentTarget;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = '⎘'; }, 1500);
+  });
 
   // Events (lazy)
   try {

@@ -65,8 +65,11 @@ async function checkAuth() {
   try {
     const me = await fetchApi('/sentinel/auth/me');
     currentUser = me;
+    const name = me.displayName || me.email || '';
     const el = document.getElementById('header-user');
-    if (el) el.textContent = me.displayName || me.email;
+    if (el) el.textContent = name;
+    const av = document.getElementById('header-avatar');
+    if (av) av.textContent = name.charAt(0).toUpperCase();
     return me;
   } catch (err) {
     if (err.status === 401) {

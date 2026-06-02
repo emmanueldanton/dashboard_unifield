@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node --test lib/trackers.test.js auth/role-check.test.js"
+    "test": "node --test lib/trackers.test.js lib/fleet.test.js auth/role-check.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
