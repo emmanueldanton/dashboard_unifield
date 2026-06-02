@@ -667,11 +667,18 @@ body {
 .proj-toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
 .proj-toolbar .disp-search { flex: 1; min-width: 220px; }
+.filter-select {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); padding: 9px 12px; font-size: 14px; font-family: inherit; cursor: pointer;
+}
+.filter-select:focus { outline: none; border-color: var(--accent); }
 
 .proj-stat-label {
   font-size: 12px;
@@ -748,23 +755,17 @@ body {
 
 /* ════════════ Onglet Dispositifs ════════════ */
 
-.disp-toolbar { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.disp-toolbar {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
 .disp-search {
   flex: 1; min-width: 240px;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   color: var(--text); padding: 9px 14px; font-size: 14px; font-family: inherit;
 }
 .disp-search:focus { outline: none; border-color: var(--accent); }
-.dd-filter {
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-  color: var(--text); padding: 9px 12px; font-size: 14px; font-family: inherit; min-width: 180px;
-}
-.dd-filter:focus { outline: none; border-color: var(--accent); }
-
-.disp-segments {
-  display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
-  margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
-}
+.seg-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
 .seg-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .seg-label {
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
@@ -850,6 +851,23 @@ body {
 .gps-link:hover { text-decoration: underline; }
 .dw-uuid { font-family: monospace; font-size: 12px; font-weight: 400; color: var(--text-muted); word-break: break-all; }
 .dw-copy { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+/* ════════════ Onglet Alertes ════════════ */
+.alert-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-val--accent { color: var(--accent); }
+.stat-val--danger { color: var(--danger); }
+.stat-val--muted  { color: var(--text-muted); }
+.alert-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); padding: 6px 10px; font-size: 14px; font-family: inherit; width: 100px;
+}
+.alert-input:focus { outline: none; border-color: var(--accent); }
+.alert-input:disabled { opacity: 0.45; cursor: not-allowed; }
 .dw-copy:hover { color: var(--accent); border-color: var(--accent); }
 .dw-section {
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;

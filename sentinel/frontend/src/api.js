@@ -9,7 +9,6 @@ async function fetchApi(path, options = {}) {
   }
 
   if (res.status === 403) {
-    document.dispatchEvent(new CustomEvent('sentinel:forbidden'));
     throw Object.assign(new Error('Acces refuse'), { code: 'FORBIDDEN', status: 403 });
   }
 

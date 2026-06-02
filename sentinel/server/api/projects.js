@@ -1,13 +1,14 @@
 'use strict';
 const { Router } = require('express');
 const { getData } = require('../db/cache');
-const { healthScore } = require('../lib/trackers');
+const { healthScore, lastSeenSeconds } = require('../lib/trackers');
 const { isArchived } = require('../lib/segments');
 const { filterData } = require('../lib/flags');
 
 const router = Router();
 
 const ACTIVITY_WINDOW_SECONDS = 60;
+const HEALTH_SCORE_WINDOW_SECS = 86400; // 24h : seuls les capteurs actifs hier/aujourd'hui entrent dans la moyenne
 const ENDING_SOON_DAYS = 30; // aligné avec kpis.js (cohérence KPI ↔ filtre)
 
 // Signal "actif" = au moins 1 capteur vu il y a moins de 60s.
@@ -88,7 +89,10 @@ function enrichProject(project, allTrackers, projectData) {
     _trackerCount: projectTrackers.length,
     _connectedCount: connectedCount,
     _batteryLowCount: batteryLowCount,
-    _healthScore: healthScore(projectTrackers, offlineDelay),
+    _healthScore: healthScore(
+      projectTrackers.filter(t => { const s = lastSeenSeconds(t); return s >= 0 && s < HEALTH_SCORE_WINDOW_SECS; }),
+      offlineDelay
+    ),
     _lastActivity: lastActivity,
     _timezone: timezone,
   };

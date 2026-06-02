@@ -205,70 +205,72 @@ export function applyFilter({ status, search } = {}) {
   if (status !== undefined) _filter = status;
   if (search !== undefined) _search = search;
   const pane = document.getElementById('view-projets');
-  if (pane && pane.children.length) renderList(pane, applyFilters());
+  if (pane && pane.querySelector('#proj-chips')) updateList(pane);
 }
 
 export async function renderProjets(container) {
   container.innerHTML = '<div class="loading">Chargement...</div>';
   const data = await fetchApi('/sentinel/api/projects');
   _projects = data.projects || [];
-  renderList(container, applyFilters());
-}
 
-function renderList(container, filtered) {
-  const counts  = countByStatus(_projects);
-  const types   = getTypes(_projects);
-
-  const statusFilters = ['all', 'actif', 'se_terminant', 'inactif', 'archive', 'termine'];
-  const chips = statusFilters.map(f => {
-    const label = f === 'all' ? 'Tous' : statusLabel(f);
-    const count = counts[f] ?? 0;
-    return `<button class="seg-chip ${_filter === f ? 'active' : ''}" data-status="${f}">
-      ${label}<span class="seg-count">${count}</span>
-    </button>`;
-  }).join('');
-
+  const types = getTypes(_projects);
   const typeSelect = types.length > 1
-    ? `<select class="disp-search" id="filter-type" style="max-width:160px;cursor:pointer">
+    ? `<select class="filter-select" id="filter-type">
         ${types.map(t => `<option value="${t}" ${_typeFilter === t ? 'selected' : ''}>${t}</option>`).join('')}
        </select>`
     : '';
 
   container.innerHTML = `
     <div class="proj-toolbar">
-      <div class="seg-group">${chips}</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        ${typeSelect}
-        <input class="disp-search" type="text" id="search-projects"
-          placeholder="Rechercher par nom ou code…" value="${_search}" />
-      </div>
+      <input class="disp-search" type="text" id="search-projects"
+        placeholder="Rechercher par nom ou code…" value="${_search}" />
+      ${typeSelect ? typeSelect + '<div class="seg-divider"></div>' : ''}
+      <div id="proj-chips" class="seg-group"></div>
     </div>
-    ${filtered.length === 0
-      ? '<div class="empty-state">Aucun projet correspondant à ce filtre.</div>'
-      : `<div class="cards-grid">${filtered.map(projectCard).join('')}</div>`}
+    <div id="proj-cards"></div>
   `;
 
-  container.querySelectorAll('.seg-chip[data-status]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _filter = btn.dataset.status;
-      renderList(container, applyFilters());
-    });
+  container.querySelector('#search-projects').addEventListener('input', e => {
+    _search = e.target.value;
+    updateList(container);
   });
 
   const typeEl = container.querySelector('#filter-type');
   if (typeEl) {
     typeEl.addEventListener('change', e => {
       _typeFilter = e.target.value;
-      renderList(container, applyFilters());
+      updateList(container);
     });
   }
 
-  container.querySelector('#search-projects').addEventListener('input', e => {
-    _search = e.target.value;
-    renderList(container, applyFilters());
+  container.querySelector('#proj-chips').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-chip[data-status]');
+    if (!btn) return;
+    _filter = btn.dataset.status;
+    updateList(container);
   });
 
-  container.querySelectorAll('.project-card[data-id]').forEach(card => {
+  updateList(container);
+}
+
+function updateList(container) {
+  const filtered = applyFilters();
+  const counts   = countByStatus(_projects);
+  const statusFilters = ['all', 'actif', 'se_terminant', 'inactif', 'archive', 'termine'];
+
+  container.querySelector('#proj-chips').innerHTML = statusFilters.map(f => {
+    const label = f === 'all' ? 'Tous' : statusLabel(f);
+    return `<button class="seg-chip ${_filter === f ? 'active' : ''}" data-status="${f}">
+      ${label}<span class="seg-count">${counts[f] ?? 0}</span>
+    </button>`;
+  }).join('');
+
+  const cardsEl = container.querySelector('#proj-cards');
+  cardsEl.innerHTML = filtered.length === 0
+    ? '<div class="empty-state">Aucun projet correspondant à ce filtre.</div>'
+    : `<div class="cards-grid">${filtered.map(projectCard).join('')}</div>`;
+
+  cardsEl.querySelectorAll('.project-card[data-id]').forEach(card => {
     card.addEventListener('click', () => renderDetail(container, card.dataset.id));
   });
 }

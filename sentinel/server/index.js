@@ -41,7 +41,10 @@ app.use(`${BASE}`, (req, res, next) => {
   // Skip auth routes (already handled) and health
   if (req.path.startsWith('/auth/') || req.path === '/health') return next();
 
-  if (isBypass()) return next();
+  if (isBypass()) {
+    req.session = { email: 'dev@cad42.local', displayName: 'Dev User', role: 'app:sentinel:admin' };
+    return next();
+  }
 
   const sid = getCookie(req);
   const session = getSession(sid);

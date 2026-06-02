@@ -24,14 +24,6 @@ document.addEventListener('sentinel:unauthorized', () => {
   window.location.href = '/sentinel/auth/login';
 });
 
-document.addEventListener('sentinel:forbidden', () => {
-  document.querySelectorAll('.view-pane').forEach(p => { p.hidden = true; });
-  const pane = document.getElementById('view-dashboard');
-  if (pane) {
-    pane.hidden = false;
-    pane.innerHTML = '<div class="error-state">Acces refuse — role insuffisant pour acceder a cette ressource.</div>';
-  }
-});
 
 function fmtUpdated(iso) {
   if (!iso) return '';

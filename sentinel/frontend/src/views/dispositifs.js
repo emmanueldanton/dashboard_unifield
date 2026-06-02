@@ -307,22 +307,11 @@ export async function renderDispositifs(container) {
   }
   state.all = data.trackers || [];
 
-  // Options projet (tri alpha)
-  const projOptions = [...new Set(state.all.map(t => t._projectName).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
-  const projIdByName = {};
-  for (const t of state.all) if (t._projectName) projIdByName[t._projectName] = t._projectId;
-
   container.innerHTML = `
     <div class="disp-toolbar">
       <input type="text" id="disp-search" class="disp-search" placeholder="⌕ Rechercher capteur, projet ou unité…" value="${state.search}" />
-      <select id="disp-project" class="dd-filter">
-        <option value="">Tous les projets</option>
-        ${projOptions.map(p => `<option value="${projIdByName[p]}" ${state.projects.has(projIdByName[p]) ? 'selected' : ''}>${p}</option>`).join('')}
-      </select>
-    </div>
-    <div class="disp-segments">
       <div id="seg-status" class="seg-group"></div>
+      <div class="seg-divider"></div>
       <div id="seg-battery" class="seg-group"></div>
     </div>
     <div id="disp-count" class="disp-count"></div>
@@ -347,12 +336,7 @@ export async function renderDispositifs(container) {
   const search = container.querySelector('#disp-search');
   search.addEventListener('input', () => { state.search = search.value; state.page = 1; update(container); });
 
-  container.querySelector('#disp-project').addEventListener('change', e => {
-    state.projects = e.target.value ? new Set([e.target.value]) : new Set();
-    state.page = 1; update(container);
-  });
-
-  container.querySelector('.disp-segments').addEventListener('click', e => {
+  container.querySelector('.disp-toolbar').addEventListener('click', e => {
     const btn = e.target.closest('.seg-chip');
     if (!btn) return;
     state[btn.dataset.group] = btn.dataset.value;

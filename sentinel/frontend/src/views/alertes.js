@@ -15,78 +15,90 @@ export async function renderAlertes(container, user) {
   const { rules, source } = rulesData;
 
   const fmtDate = iso => iso ? new Date(iso).toLocaleString('fr-FR') : '-';
-
   const sevLabel = s => s === 'critical' ? 'Critique' : 'Avertissement';
 
   const alertRows = (alerts || []).map(a => `
     <tr>
       <td>${fmtDate(a.ts)}</td>
       <td><span class="badge badge-${a.severity === 'critical' ? 'critical' : 'warning'}">${sevLabel(a.severity)}</span></td>
-      <td>${a.rule}</td>
+      <td class="cell-strong">${a.rule}</td>
       <td>${a.trackerName}</td>
       <td>${a.projectName || '-'}</td>
-      <td style="color:var(--text-muted);font-size:12px">${a.message}</td>
+      <td class="cell-sub">${a.message}</td>
     </tr>`).join('');
 
-  const rulesForm = rules.map(rule => `
-    <div class="form-group" data-rule-id="${rule._id || rule.name}">
-      <label>${rule.description || rule.name} (${rule.name})</label>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="color:var(--text-muted);font-size:12px">${rule.field} ${rule.operator}</span>
-        <input type="number" step="0.1" value="${rule.threshold}" ${isAdmin ? '' : 'disabled'}
-          class="rule-threshold" data-id="${rule._id || ''}" style="width:100px" />
-        <span class="badge badge-${rule.severity === 'critical' ? 'critical' : 'warning'}">${sevLabel(rule.severity)}</span>
-        ${isAdmin ? `<button class="btn-primary btn-save-rule" data-id="${rule._id || ''}">Enregistrer</button>` : ''}
-      </div>
-    </div>`).join('');
+  const ruleRows = rules.map(rule => `
+    <tr data-rule-id="${rule._id || rule.name}">
+      <td>
+        <div class="cell-strong">${rule.description || rule.name}</div>
+        <div class="cell-sub">${rule.name}</div>
+      </td>
+      <td class="cell-sub">${rule.field} ${rule.operator}</td>
+      <td>
+        ${isAdmin
+          ? `<input type="number" step="0.1" value="${rule.threshold}"
+               class="rule-threshold alert-input" data-id="${rule._id || rule.name}" />`
+          : `<span class="dw-stat-value">${rule.threshold}</span>`}
+      </td>
+      <td><span class="badge badge-${rule.severity === 'critical' ? 'critical' : 'warning'}">${sevLabel(rule.severity)}</span></td>
+      ${isAdmin ? `<td><button class="btn-primary btn-save-rule" data-id="${rule._id || rule.name}">Enregistrer</button></td>` : ''}
+    </tr>`).join('');
 
   container.innerHTML = `
-    <div class="panel" style="margin-bottom:24px">
-      <div class="panel-title">Etat du scheduler</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Statut</div>
-          <div style="font-weight:600;color:${isRunning ? 'var(--accent)' : 'var(--text-muted)'}">${isRunning ? 'En cours...' : 'En attente'}</div>
-
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Dernier cycle</div>
-          <div style="font-size:13px">${fmtDate(lastCycle)}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Prochain cycle</div>
-          <div style="font-size:13px">${fmtDate(nextCycle)}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Alertes actives</div>
-          <div style="font-weight:600;color:${activeAlerts > 0 ? 'var(--danger)' : 'var(--accent)'}">${activeAlerts}</div>
-        </div>
+    <div class="alert-stat-grid">
+      <div class="dw-stat">
+        <div class="dw-stat-label">Statut scheduler</div>
+        <div class="dw-stat-value ${isRunning ? 'stat-val--accent' : 'stat-val--muted'}">${isRunning ? 'En cours…' : 'En attente'}</div>
       </div>
-    </div>
-
-    <div class="panel" style="margin-bottom:24px">
-      <div class="panel-title">
-        Configuration des regles
-        <span style="font-weight:normal;color:var(--text-muted);font-size:11px;margin-left:8px">(source: ${source})</span>
-        ${!isAdmin ? '<span style="font-weight:normal;color:var(--text-muted);font-size:11px;margin-left:8px">- lecture seule (role admin requis)</span>' : ''}
+      <div class="dw-stat">
+        <div class="dw-stat-label">Dernier cycle</div>
+        <div class="dw-stat-value">${fmtDate(lastCycle)}</div>
       </div>
-      <div id="rules-form">${rulesForm}</div>
+      <div class="dw-stat">
+        <div class="dw-stat-label">Prochain cycle</div>
+        <div class="dw-stat-value">${fmtDate(nextCycle)}</div>
+      </div>
+      <div class="dw-stat">
+        <div class="dw-stat-label">Alertes actives</div>
+        <div class="dw-stat-value ${activeAlerts > 0 ? 'stat-val--danger' : 'stat-val--accent'}">${activeAlerts}</div>
+      </div>
     </div>
 
     <div class="panel">
-      <div class="panel-title">Historique des alertes (${total} total)</div>
-      ${alerts.length === 0 ? '<div class="empty-state">Aucune alerte enregistree.</div>' : `
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Severite</th><th>Regle</th>
-              <th>Tracker</th><th>Projet</th><th>Message</th>
-            </tr>
-          </thead>
-          <tbody>${alertRows}</tbody>
-        </table>
-      </div>`}
+      <div class="panel-header">
+        <div class="panel-header-left">
+          <div class="panel-title" style="margin-bottom:0">Configuration des règles</div>
+          <span class="panel-updated">source : ${source}</span>
+        </div>
+        ${!isAdmin ? '<span class="panel-badge panel-badge--warn">Lecture seule</span>' : ''}
+      </div>
+      ${rules.length === 0
+        ? '<div class="empty-state">Aucune règle configurée.</div>'
+        : `<div class="disp-table-wrap">
+             <table class="data-table">
+               <thead><tr>
+                 <th>Règle</th><th>Condition</th><th>Seuil</th><th>Sévérité</th>${isAdmin ? '<th></th>' : ''}
+               </tr></thead>
+               <tbody>${ruleRows}</tbody>
+             </table>
+           </div>`}
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="margin-bottom:0">Historique des alertes</div>
+        <span class="panel-badge ${total > 0 ? 'panel-badge--warn' : 'panel-badge--ok'}">${total} total</span>
+      </div>
+      ${alerts.length === 0
+        ? '<div class="empty-state">Aucune alerte enregistrée.</div>'
+        : `<div class="disp-table-wrap">
+             <table class="data-table">
+               <thead><tr>
+                 <th>Date</th><th>Sévérité</th><th>Règle</th><th>Capteur</th><th>Projet</th><th>Message</th>
+               </tr></thead>
+               <tbody>${alertRows}</tbody>
+             </table>
+           </div>`}
     </div>
   `;
 
@@ -104,11 +116,12 @@ export async function renderAlertes(container, user) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ threshold }),
           });
-          btn.textContent = 'Enregistre';
+          btn.textContent = 'Enregistré';
           setTimeout(() => { btn.textContent = 'Enregistrer'; btn.disabled = false; }, 2000);
         } catch (err) {
-          btn.textContent = 'Erreur';
-          btn.disabled = false;
+          console.error('[rules] save failed:', err.message, err.status);
+          btn.textContent = err.code === 'FORBIDDEN' ? 'Non autorisé' : 'Erreur';
+          setTimeout(() => { btn.textContent = 'Enregistrer'; btn.disabled = false; }, 2000);
         }
       });
     });
